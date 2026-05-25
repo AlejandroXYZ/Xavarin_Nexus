@@ -5,6 +5,8 @@ import os
 from fastapi import FastAPI
 import sys
 from app.api.webhook.webhook import webhook_router
+from app.clients.db import lifespan_db
+from app.clients.odoo_jsonrpc import lifespan_http_odoo
 
 dotenv.load_dotenv()
 
@@ -21,7 +23,7 @@ logger = logging.getLogger(__name__)
 async def lifespan_main(app: FastAPI):
     async with AsyncExitStack() as stack:
         await stack.enter_async_context(lifespan_db(app))
-        await stack.enter_async_context(lifespan_odoo(app))
+        await stack.enter_async_context(lifespan_http_odoo(app))
 
         yield
 
@@ -44,4 +46,4 @@ else:
         lifespan=lifespan_main,
     )
 
-app.include_router(chat_router)
+app.include_router(webhook_router)

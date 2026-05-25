@@ -9,6 +9,7 @@ webhook_router = APIRouter(prefix="/api/v1/webhook/{tenant_id}", tags=["webhook"
 
 
 logger = logging.getLogger(__name__)
+prompt = "Saluda"
 
 
 @webhook_router.post(

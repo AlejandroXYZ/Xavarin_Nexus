@@ -12,3 +12,4 @@ async def verificar_api(api_recibida: str = Security(x_api_key)):
         return api_recibida
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales incorrectas"
+    )

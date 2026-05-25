@@ -1,20 +1,18 @@
-import httpx
 import logging
+import httpx
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from app.core.catalog import get_catalog
-import os
+
 
 logger = logging.getLogger(__name__)
-base_url = "http://odoo:8069"
-id_usuario = os.getenv("USUARIO_ID", None)
-db = os.getenv("DB", "db")
-usuario = os.getenv("ODOO_USER", "odoo")
-api_key = os.getenv("API_KEY_ODOO", "api")
 
 
-async def conexion_odoo():
-    client = httpx.AsyncClient(timeout=15.0, base_url=base_url)
+async def autenticar_odoo_dinamico(
+    http_client: httpx.AsyncClient, odoo_url: str, db: str, usuario: str, api_key: str
+):
+    """
+    Autentica al bot de Odoo  usando el cliente HTTP global y las credenciales específicas del inquilino
+    """
     payload = {
         "jsonrpc": "2.0",
         "method": "call",
@@ -25,26 +23,37 @@ async def conexion_odoo():
         },
         "id": 1,
     }
-    response = await client.post("/jsonrpc", json=payload)
-    response.raise_for_status()
-    json = response.json()
-    uid = json.get("result")
-    if not uid:
-        raise RuntimeError("Credenciales de Odoo no válidas. No se pudo obtener el UID")
 
-    return {"client": client, "uid": uid}
+    response = await http_client.post(f"{odoo_url}/jsonrpc", json=payload)
+    response.raise_for_status()
+
+    json_data = response.json()
+    uid = json_data.get("result")
+
+    if not uid:
+        raise RuntimeError(
+            f"Credenciales de Odoo no válidas para la DB {db}. Asegúrate de crear una API Válida."
+        )
+    return uid
 
 
 @asynccontextmanager
-async def lifespan_odoo(app: FastAPI):
-    """Pool de conexión JSON-RPC Odoo-FastAPI"""
+async def lifespan_http_odoo(app: FastAPI):
+    """Pool de conexión HTTP para el SaaS"""
+    logger.info("Inicializando pool de conexiones...")
+
     try:
-        datos = await conexion_odoo()
-        app.state.odoo_client = datos["client"]
-        app.state.odoo_uid = datos["uid"]
+        app.state.http_client = httpx.AsyncClient(
+            timeout=15.0,
+            limits=httpx.Limits(max_keepalive_connections=50, max_connections=100),
+        )
 
+        yield
     except Exception as e:
+        logger.error(f" Error en el arranque: {e}")
         raise e
-    yield
 
-    await app.state.odoo_client.aclose()
+    finally:
+        logger.info(" Apagando el servidor. Cerrando conexiones...")
+        await app.state.http_client.aclose()
+        logger.info("Conexiones cerradas.")

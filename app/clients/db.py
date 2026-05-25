@@ -32,7 +32,7 @@ async def init_db():
         if not user_exists:
             logger.info(f"Creando Usuario: {new_user}")
             await conn.execute(
-                "CREATE USER $1 WITH PASSWORD $2;", new_user, new_password
+                f"CREATE USER {new_user} WITH PASSWORD '{new_password}';"
             )
 
         db_exists = await conn.fetchval(
@@ -40,7 +40,7 @@ async def init_db():
         )
         if not db_exists:
             logger.info(f"Creando DB: {new_db}")
-            await conn.execute("CREATE DATABASE $1 OWNER $2;", new_db, new_user)
+            await conn.execute(f"CREATE DATABASE {new_db} OWNER {new_user};")
 
         await conn.close()
 
@@ -65,10 +65,10 @@ async def init_db():
         name TEXT UNIQUE NOT NULL,
         status TEXT NOT NULL DEFAULT 'esperando_datos' CHECK (status IN ('activo','suspendido','prueba','esperando_datos' )),
         expiry_date TIMESTAMPTZ NOT NULL, 
-        phone_number UNIQUE TEXT NOT NULL, 
+        phone_number TEXT UNIQUE NOT NULL, 
         email TEXT UNIQUE NOT NULL,
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL ,
-        update_at TIMESTAMPTZ,
+        updated_at TIMESTAMPTZ,
         timezone TEXT,
         social_networks JSONB DEFAULT '{}'::jsonb,
         options JSONB DEFAULT '{}'::jsonb,
@@ -123,7 +123,7 @@ async def init_db():
                 stock NUMERIC(12,2) DEFAULT 0.00,
                 embedding VECTOR(384),
                 conversions JSONB DEFAULT '{}'::jsonb,
-                metadata JSONB DEFAULT '{}'::jsonb,
+                metadata JSONB DEFAULT '{}'::jsonb
             );
             
                 -- Métrica del Coseno (vector_cosine_ops) para modelos de embeddings
