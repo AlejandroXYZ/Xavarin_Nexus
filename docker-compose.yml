@@ -1,0 +1,74 @@
+services:
+  backend:
+    build: .
+    container_name: "backend"
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+    env_file:
+      - .env
+    command: "uvicorn main:app --host 0.0.0.0 --port 8000"
+    networks:
+      - main-network
+    ports:
+      - "8000:8000"
+
+  db:
+    image: pgvector/pgvector:pg17
+    restart: always
+    env_file:
+      - .env
+    networks:
+      - main-network
+    volumes:
+      - db_volume:/var/lib/postgresql/data
+
+  odoo:
+    image: odoo:19
+    restart: always
+    depends_on:
+      - db
+    env_file:
+      - .env
+    networks:
+      - main-network
+    ports:
+      - "8069:8069"
+
+  n8n:
+    image: n8nio/n8n:stable
+    restart: always
+    networks:
+      - main-network
+    volumes:
+      - n8n-volume:/home/node/.n8n
+    ports:
+      - "5678:5678"
+    env_file:
+      - .env
+
+  adminer:
+    image: adminer
+    restart: always
+    networks:
+      - main-network
+    ports:
+      - "8080:8080"
+
+  redis:
+    image: redis:8.6.3
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-volume:/data
+
+networks:
+  main-network:
+
+volumes:
+  db_volume:
+  n8n-volume:
+  odoo-volume:
+  redis-volume:
