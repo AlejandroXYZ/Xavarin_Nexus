@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager, AsyncExitStack
 import os
 from fastapi import FastAPI
 import sys
-from app.api.webhook.webhook import webhook_router
+from app.api.webhook import webhook_router
 from app.clients.db import lifespan_db
 from app.clients.odoo_jsonrpc import lifespan_http_odoo
 

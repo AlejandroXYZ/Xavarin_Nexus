@@ -2,6 +2,7 @@ httpx
 fastapi
 uvicorn
 pydantic
+pydantic-extra-types
 python-dotenv
 groq
 asyncpg
