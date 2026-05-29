@@ -8,3 +8,4 @@ groq
 asyncpg
 fastembed
 redis
+cryptography

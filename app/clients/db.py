@@ -63,7 +63,7 @@ async def init_db():
         await conn.execute("""CREATE TABLE IF NOT EXISTS tenants (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name TEXT UNIQUE NOT NULL,
-        status TEXT NOT NULL DEFAULT 'esperando_datos' CHECK (status IN ('activo','suspendido','prueba','esperando_datos' )),
+        status TEXT NOT NULL DEFAULT 'esperando_agencia' CHECK (status IN ('activo','suspendido','prueba','esperando_agencia' )),
         expiry_date TIMESTAMPTZ NOT NULL, 
         phone_number TEXT UNIQUE NOT NULL, 
         email TEXT UNIQUE NOT NULL,
