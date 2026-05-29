@@ -7,6 +7,38 @@ import os
 logger = logging.getLogger(__name__)
 
 
+async def eliminar_db_odoo(
+    http_client: httpx.AsyncClient,
+    odoo_url: str,
+    db_nombre: str,
+    master_password: str,
+):
+    """
+    Elimina una base de datos de Odoo usando el servicio de administración de DB de forma asíncrona.
+    Útil como paso de rollback en procesos automatizados de clonación.
+    """
+
+    payload = {
+        "jsonrpc": "2.0",
+        "method": "call",
+        "params": {
+            "service": "db",
+            "method": "drop",
+            "args": [master_password, db_nombre],
+        },
+        "id": 1,
+    }
+
+    response = await http_client.post(f"{odoo_url}/jsonrpc", json=payload)
+    response.raise_for_status()
+
+    json_data = response.json()
+
+    if "error" in json_data:
+        raise RuntimeError(f"Error al eliminar la base de datos: {json_data['error']}")
+    return json_data.get("result")
+
+
 async def autenticar_odoo(
     http_client: httpx.AsyncClient, odoo_url: str, db: str, usuario: str, api_key: str
 ) -> int:
