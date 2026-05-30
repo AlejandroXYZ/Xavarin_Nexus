@@ -14,7 +14,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/intl-tel-input@23.0.4/build/css/intlTelInput.css"
     />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="/static/forms/public/styles.css" />
   </head>
   <body>
     <div class="agency-logo">
@@ -81,13 +81,16 @@
               style="
                 opacity: 0;
                 position: absolute;
-                bottom: 0;
-                left: 50%;
+                top: 0;
+                left: 0;
+                width: 1px;
+                height: 1px;
                 pointer-events: none;
+                z-index: -1;
               "
             />
 
-            <div class="plan-card" data-value="Básico">
+            <div class="plan-card" data-value="basico">
               <div class="plan-inner">
                 <div class="plan-front">
                   <h3>Básico</h3>
@@ -103,7 +106,7 @@
               </div>
             </div>
 
-            <div class="plan-card" data-value="Profesional">
+            <div class="plan-card" data-value="profesional">
               <div class="plan-inner">
                 <div class="plan-front">
                   <h3>Profesional</h3>
@@ -120,7 +123,7 @@
               </div>
             </div>
 
-            <div class="plan-card" data-value="Enterprise">
+            <div class="plan-card" data-value="enterprise">
               <div class="plan-inner">
                 <div class="plan-front">
                   <h3>Enterprise</h3>
@@ -180,7 +183,7 @@
             <select id="attention_tone" name="attention_tone" required>
               <option value="" disabled selected>Elige un tono...</option>
               <option value="formal">Formal y Respetuoso</option>
-              <option value="amigable">Amigable y Cercano</option>
+              <option value="amable">Amable y Cercano</option>
               <option value="entusiasta">Entusiasta y Persuasivo</option>
             </select>
           </div>
@@ -337,35 +340,103 @@
           <div class="question-header">
             <h2>Últimos detalles: Políticas y Finanzas 📝</h2>
           </div>
+
           <div class="input-wrapper">
-            <label for="shipping_policies">Políticas de Envío (Opcional)</label>
+            <label
+              >¿Hacen entregas por delivery o envíos
+              nacionales/internacionales?</label
+            >
+            <div class="radio-group">
+              <label class="radio-label">
+                <input
+                  type="radio"
+                  name="has_shipping"
+                  value="si"
+                  id="shipping_yes"
+                />
+                Sí
+              </label>
+              <label class="radio-label">
+                <input
+                  type="radio"
+                  name="has_shipping"
+                  value="no"
+                  id="shipping_no"
+                  checked
+                />
+                No
+              </label>
+            </div>
+          </div>
+          <div
+            class="input-wrapper"
+            id="shipping_details_wrapper"
+            style="display: none"
+          >
+            <label for="shipping_policies"
+              >Cuéntenos más al respecto (Costos, zonas, tiempos)</label
+            >
             <textarea
               id="shipping_policies"
               name="shipping_policies"
-              rows="1"
-              placeholder="Detalles de envíos (Delivery,Zoom,MRW...)"
+              rows="2"
+              placeholder="Ej: Delivery gratis en la ciudad, envíos nacionales cobro a destino..."
             ></textarea>
           </div>
+
           <div class="input-wrapper">
+            <label
+              >¿Ofrecen garantías de sus productos o aceptan
+              devoluciones?</label
+            >
+            <div class="radio-group">
+              <label class="radio-label">
+                <input
+                  type="radio"
+                  name="has_warranty"
+                  value="si"
+                  id="warranty_yes"
+                />
+                Sí
+              </label>
+              <label class="radio-label">
+                <input
+                  type="radio"
+                  name="has_warranty"
+                  value="no"
+                  id="warranty_no"
+                  checked
+                />
+                No
+              </label>
+            </div>
+          </div>
+          <div
+            class="input-wrapper"
+            id="warranty_details_wrapper"
+            style="display: none"
+          >
             <label for="warranty_policies"
-              >Políticas de Garantías y Devoluciones (Opcional)</label
+              >Cuéntenos más al respecto (Condiciones, tiempos máximos)</label
             >
             <textarea
               id="warranty_policies"
               name="warranty_policies"
-              rows="1"
-              placeholder="Ofrecen Garantías en sus productos?"
+              rows="2"
+              placeholder="Ej: 30 días de garantía por defectos de fábrica. No hay devoluciones..."
             ></textarea>
           </div>
+
           <div class="input-wrapper">
-            <label for="bank_details">Datos Bancarios (Opcional)</label>
+            <label for="bank_details">Datos Bancarios</label>
             <textarea
               id="bank_details"
               name="bank_details"
-              rows="1"
-              placeholder="Cuentas para recibir pagos..."
+              rows="2"
+              placeholder="Cuentas para recibir pagos, Zelle, Pago Móvil, Binance..."
             ></textarea>
           </div>
+
           <div class="btn-group">
             <button type="button" class="prev-btn">Volver</button>
             <button type="submit" id="submitBtn">Finalizar 🎉</button>
@@ -379,6 +450,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@23.0.4/build/js/intlTelInput.min.js"></script>
-    <script src="script.js"></script>
+    <script src="/static/forms/public/script.js"></script>
   </body>
 </html>

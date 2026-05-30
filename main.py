@@ -8,6 +8,7 @@ from app.api.webhook import webhook_router
 from app.clients.db import lifespan_db
 from app.clients.odoo_jsonrpc import lifespan_http_odoo
 from app.api.register import register_router
+from fastapi.staticfiles import StaticFiles
 
 dotenv.load_dotenv()
 
@@ -49,3 +50,4 @@ else:
 
 app.include_router(webhook_router)
 app.include_router(register_router)
+app.mount("/static", StaticFiles(directory="app/frontend"), name="static")

@@ -10,6 +10,7 @@ from app.api.register_utils.name_schema import generar_nombre_esquema
 from app.api.register_utils.register_tenant import registrar_tenant
 from app.api.register_utils.api_key_generator import generar_api_key_bot
 from app.api.register_utils.save_credentials import guardar_credenciales
+from fastapi.responses import FileResponse
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,14 @@ usuario_admin = os.getenv("USUARIO_ADMIN_BASE", "odoo")
 password_admin = os.getenv("PASSWORD_ADMIN_BASE", "odoo")
 
 register_router = APIRouter(prefix="/api/v1/tenants", tags=["register"])
+
+
+@register_router.get("/form", status_code=status.HTTP_200_OK)
+async def formulario_inquilino():
+    logger.info("Abriendo Formulario")
+    return FileResponse(
+        path="app/frontend/forms/public/formulario.html",
+    )
 
 
 @register_router.post("/register", status_code=status.HTTP_201_CREATED)
