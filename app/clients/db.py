@@ -94,7 +94,7 @@ async def init_db():
         tenant_id UUID PRIMARY KEY,
         odoo_url TEXT UNIQUE,
         odoo_db TEXT UNIQUE,
-        odoo_bot_user TEXT,
+        odoo_bot_user INTEGER,
         odoo_bot_api_key TEXT UNIQUE,
         tokens_platforms JSONB DEFAULT '{}'::jsonb,
         metadata JSONB DEFAULT '{}'::jsonb,

@@ -79,6 +79,7 @@ async def duplicate_schema(db, schema_name: str):
 
         logger.info(f"Esquema Clonado Perfectamente con el nombre {schema_name}")
     except Exception as e:
+        logger.error(f"Error durante la clonacion de la DB de odoo: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}"
         )

@@ -1,117 +1,143 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin - Activación de Inquilino</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="admin-styles.css">
-</head>
-<body>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/forms/admin/admin-styles.css" />
+  </head>
+  <body>
     <div class="agency-logo">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-            <polyline points="2 17 12 22 22 17"></polyline>
-            <polyline points="2 12 12 17 22 12"></polyline>
-        </svg>
-        <span>Admin Workspace</span>
+      <svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+        <polyline points="2 17 12 22 22 17"></polyline>
+        <polyline points="2 12 12 17 22 12"></polyline>
+      </svg>
+      <span>Admin Workspace</span>
     </div>
 
     <div class="admin-container">
-        <div class="admin-card">
-            
-            <header class="admin-header">
-                <div>
-                    <h2>Configuración de Sistema IA ⚙️</h2>
-                    <p>Revisión y activación del entorno para el nuevo inquilino.</p>
-                </div>
-                <div class="status-badge">Esperando Activación</div>
-            </header>
+      <div class="admin-card">
+        <header class="admin-header">
+          <div>
+            <h2>Configuración de Sistema IA ⚙️</h2>
+            <p>Revisión y activación del entorno para el nuevo inquilino.</p>
+          </div>
+          <div class="status-badge">Esperando Activación</div>
+        </header>
 
-            <div class="dashboard-grid">
-                
-                <!-- COLUMNA IZQUIERDA: Resumen de Solo Lectura (Datos del Cliente) -->
-                <div class="tenant-data-section">
-                    <h3>Datos del Cliente</h3>
-                    
-                    <div class="data-group">
-                        <label>Nombre Comercial</label>
-                        <div class="data-value" id="view_name">-</div>
-                    </div>
-                    
-                    <div class="data-group-row">
-                        <div class="data-group">
-                            <label>Plan Elegido</label>
-                            <div class="data-value highlight" id="view_plan">-</div>
-                        </div>
-                        <div class="data-group">
-                            <label>Tono IA</label>
-                            <div class="data-value" id="view_tone">-</div>
-                        </div>
-                    </div>
+        <div class="dashboard-grid">
+          <!-- COLUMNA IZQUIERDA: Resumen de Solo Lectura (Datos del Cliente) -->
+          <div class="tenant-data-section">
+            <h3>Datos del Cliente</h3>
 
-                    <div class="data-group">
-                        <label>Contacto</label>
-                        <div class="data-value" id="view_contact">-</div>
-                    </div>
-
-                    <div class="data-group">
-                        <label>Descripción / Contexto</label>
-                        <div class="data-value box" id="view_description">-</div>
-                    </div>
-
-                    <div class="data-group">
-                        <label>Políticas y Detalles Extra</label>
-                        <div class="data-value small-text" id="view_extra">-</div>
-                    </div>
-                </div>
-
-                <!-- COLUMNA DERECHA: Formulario de Configuración del Admin -->
-                <div class="admin-form-section">
-                    <h3>Parámetros de Integración</h3>
-                    
-                    <form id="adminSetupForm">
-                        
-                        <!-- System Prompt -->
-                        <div class="input-wrapper">
-                            <label for="ai_system_prompt">AI System Prompt (Instrucciones base)</label>
-                            <textarea id="ai_system_prompt" name="AI_System_Prompt" rows="6" required placeholder="Actúa como un asistente virtual para la empresa {nombre}. Tu tono debe ser {tono}. Tu objetivo es..."></textarea>
-                        </div>
-
-                        <!-- Contenedor Dinámico para los Tokens -->
-                        <div class="tokens-section">
-                            <label>Tokens de Plataformas <span class="badge-info" id="plan_badge"></span></label>
-                            <p class="hint">Según el plan, ingresa las credenciales requeridas:</p>
-                            
-                            <div id="dynamicTokensContainer" class="dynamic-tokens-grid">
-                                <!-- El JavaScript inyectará los inputs aquí -->
-                            </div>
-                        </div>
-
-                        <div class="form-actions">
-                            <button type="submit" id="activateBtn" class="activate-btn">
-                                Activar Ecosistema 🚀
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
+            <div class="data-group">
+              <label>Nombre Comercial</label>
+              <div class="data-value" id="view_name">-</div>
             </div>
+
+            <div class="data-group-row">
+              <div class="data-group">
+                <label>Plan Elegido</label>
+                <div class="data-value highlight" id="view_plan">-</div>
+              </div>
+              <div class="data-group">
+                <label>Tono IA</label>
+                <div class="data-value" id="view_tone">-</div>
+              </div>
+            </div>
+
+            <div class="data-group">
+              <label>Contacto</label>
+              <div class="data-value" id="view_contact">-</div>
+            </div>
+
+            <div class="data-group">
+              <label>Descripción / Contexto</label>
+              <div class="data-value box" id="view_description">-</div>
+            </div>
+
+            <div class="data-group">
+              <label>Políticas y Detalles Extra</label>
+              <div class="data-value small-text" id="view_extra">-</div>
+            </div>
+          </div>
+
+          <!-- COLUMNA DERECHA: Formulario de Configuración del Admin -->
+          <div class="admin-form-section">
+            <h3>Parámetros de Integración</h3>
+
+            <form id="adminSetupForm">
+              <!-- System Prompt -->
+              <div class="input-wrapper">
+                <label for="ai_system_prompt"
+                  >AI System Prompt (Instrucciones base)</label
+                >
+                <textarea
+                  id="ai_system_prompt"
+                  name="AI_System_Prompt"
+                  rows="6"
+                  required
+                  placeholder="Actúa como un asistente virtual para la empresa {nombre}. Tu tono debe ser {tono}. Tu objetivo es..."
+                ></textarea>
+              </div>
+
+              <!-- Contenedor Dinámico para los Tokens -->
+              <div class="tokens-section">
+                <label
+                  >Tokens de Plataformas
+                  <span class="badge-info" id="plan_badge"></span
+                ></label>
+                <p class="hint">
+                  Según el plan, ingresa las credenciales requeridas:
+                </p>
+
+                <div id="dynamicTokensContainer" class="dynamic-tokens-grid">
+                  <!-- El JavaScript inyectará los inputs aquí -->
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" id="activateBtn" class="activate-btn">
+                  Activar Ecosistema 🚀
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
+      </div>
     </div>
 
     <!-- Pantalla de Éxito Admin -->
     <div id="successScreen" class="success-screen">
-        <div class="success-content">
-            <span class="success-emoji">✅</span>
-            <h1>Inquilino Activado</h1>
-            <p>Las credenciales y el prompt se han guardado correctamente en la base de datos.</p>
-            <button onclick="window.location.reload()" class="outline-btn">Volver al Panel</button>
-        </div>
+      <div class="success-content">
+        <span class="success-emoji">✅</span>
+        <h1>Inquilino Activado</h1>
+        <p>
+          Las credenciales y el prompt se han guardado correctamente en la base
+          de datos.
+        </p>
+        <button onclick="window.location.reload()" class="outline-btn">
+          Volver al Panel
+        </button>
+      </div>
     </div>
 
-    <script src="admin-script.js"></script>
-</body>
+    <script src="/static/forms/admin/admin-script.js"></script>
+  </body>
 </html>

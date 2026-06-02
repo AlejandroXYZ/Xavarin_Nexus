@@ -1,115 +1,182 @@
-document.addEventListener("DOMContentLoaded", () => {
-    
-    // ==========================================================
-    // 1. SIMULACIÓN DE DATOS INYECTADOS POR EL BACKEND
-    // En producción, podrías inyectar esto con Jinja2 o hacer un fetch() a tu API
-    // ==========================================================
-    const tenantDataMock = {
-        name: "TechNova C.A.",
-        email: "operaciones@technovaca.com",
-        phone_number: "+584121234567",
-        payment_plan: "enterprise", // Puede ser: "basico", "profesional", "enterprise"
-        attention_tone: "entusiasta",
-        description: "Desarrollo web y digitalización de negocios retail.",
-        shipping_policies: "Envíos nacionales vía MRW.",
-        warranty_policies: "30 días por software."
-    };
+document.addEventListener("DOMContentLoaded", async () => {
+  let tenantDataMock;
 
-    // ==========================================================
-    // 2. POBLAR LA VISTA DE SOLO LECTURA
-    // ==========================================================
-    document.getElementById("view_name").textContent = tenantDataMock.name;
-    document.getElementById("view_plan").textContent = tenantDataMock.payment_plan;
-    document.getElementById("view_tone").textContent = tenantDataMock.attention_tone;
-    document.getElementById("view_contact").textContent = `${tenantDataMock.email} | ${tenantDataMock.phone_number}`;
-    document.getElementById("view_description").textContent = tenantDataMock.description;
-    document.getElementById("view_extra").textContent = `Envíos: ${tenantDataMock.shipping_policies} | Garantías: ${tenantDataMock.warranty_policies}`;
+  // Ámbito global para reutilizar las credenciales de origen en el envío final
+  const ORIGEN_SERVIDOR = window.location.origin;
+  let llaveSesion = "";
 
+  try {
     // ==========================================================
-    // 3. GENERACIÓN DINÁMICA DE CAMPOS DE TOKENS SEGÚN EL PLAN
+    // 1. CONFIGURACIÓN DINÁMICA DE RUTA Y EXTRACCIÓN DE PARÁMETRO
     // ==========================================================
-    const tokensContainer = document.getElementById("dynamicTokensContainer");
-    const planBadge = document.getElementById("plan_badge");
-    const plan = tenantDataMock.payment_plan;
-    
-    planBadge.textContent = plan; // Mostrar el plan en la etiqueta azul
+    const rutaCompleta = window.location.pathname;
+    const segmentos = rutaCompleta
+      .split("/")
+      .filter((segmento) => segmento !== "");
+    llaveSesion = segmentos[segmentos.length - 1];
 
-    // Lógica de plataformas según el plan de la empresa SaaS
-    let requiredPlatforms = [];
-    
-    if (plan === "basico") {
-        requiredPlatforms = ["Telegram"];
-    } else if (plan === "profesional") {
-        requiredPlatforms = ["Telegram", "WhatsApp"];
-    } else if (plan === "enterprise") {
-        requiredPlatforms = ["Telegram", "WhatsApp", "Instagram", "TikTok"];
+    if (!llaveSesion) {
+      throw new Error(
+        "No se pudo detectar el parámetro de sesión al final de la URL.",
+      );
     }
 
-    // Inyectar los inputs al HTML
-    requiredPlatforms.forEach(platform => {
-        // Convertimos el nombre a formato llave de diccionario (ej: "Telegram" -> "telegram")
-        const keyName = platform.toLowerCase();
-        
-        const inputHTML = `
+    // Ruta exacta hacia tu endpoint POST de inyección
+    const urlInyection = `${ORIGEN_SERVIDOR}/api/v1/tenants/form/admin/${encodeURIComponent(llaveSesion)}/inyection`;
+
+    console.log("Haciendo fetch POST a:", urlInyection);
+
+    const response = await fetch(urlInyection, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Error del servidor: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    // Leemos la respuesta como texto plano primero para prevenir errores de parsing JSON
+    const textoCrudo = await response.text();
+
+    try {
+      tenantDataMock = JSON.parse(textoCrudo);
+    } catch (jsonError) {
+      throw new Error(
+        `El backend devolvió un texto plano inválido. Contenido: "${textoCrudo}"`,
+      );
+    }
+  } catch (error) {
+    console.error("Fallo de conexión:", error);
+    alert("No se pudieron cargar los datos de la empresa.");
+    return; // Detiene la ejecución si falla la carga inicial
+  }
+
+  // ==========================================================
+  // 2. POBLAR LA VISTA DE SOLO LECTURA
+  // ==========================================================
+  document.getElementById("view_name").textContent = tenantDataMock.name || "-";
+  document.getElementById("view_plan").textContent =
+    tenantDataMock.payment_plan || "-";
+  document.getElementById("view_tone").textContent =
+    tenantDataMock.attention_tone || "-";
+  document.getElementById("view_contact").textContent =
+    `${tenantDataMock.email || ""} | ${tenantDataMock.phone_number || ""}`;
+  document.getElementById("view_description").textContent =
+    tenantDataMock.description || "-";
+  document.getElementById("view_extra").textContent =
+    `Envíos: ${tenantDataMock.shipping_policies || "No especificado"} | Garantías: ${tenantDataMock.warranty_policies || "No especificado"}`;
+
+  // ==========================================================
+  // 3. GENERACIÓN DINÁMICA DE CAMPOS DE TOKENS SEGÚN EL PLAN
+  // ==========================================================
+  const tokensContainer = document.getElementById("dynamicTokensContainer");
+  const planBadge = document.getElementById("plan_badge");
+  const plan = tenantDataMock.payment_plan;
+
+  planBadge.textContent = plan;
+
+  let requiredPlatforms = [];
+
+  if (plan === "basico") {
+    requiredPlatforms = ["Telegram"];
+  } else if (plan === "profesional") {
+    requiredPlatforms = ["Telegram", "WhatsApp"];
+  } else if (plan === "enterprise") {
+    requiredPlatforms = ["Telegram", "WhatsApp", "Instagram", "TikTok"];
+  }
+
+  tokensContainer.innerHTML = "";
+  requiredPlatforms.forEach((platform) => {
+    const keyName = platform.toLowerCase();
+    const inputHTML = `
             <div class="token-input-group">
                 <input type="text" name="token_${keyName}" required 
                        placeholder="Token / API Key para ${platform}">
             </div>
         `;
-        tokensContainer.insertAdjacentHTML('beforeend', inputHTML);
-    });
+    tokensContainer.insertAdjacentHTML("beforeend", inputHTML);
+  });
 
-    // ==========================================================
-    // 4. LÓGICA DE ENVÍO DEL FORMULARIO ADMIN (HACIA FASTAPI)
-    // ==========================================================
-    const adminForm = document.getElementById("adminSetupForm");
-    
-    adminForm.addEventListener("submit", (e) => {
-        e.preventDefault();
+  // ==========================================================
+  // 4. LÓGICA DE ENVÍO REAL DEL FORMULARIO ADMIN (HACIA FASTAPI)
+  // ==========================================================
+  const adminForm = document.getElementById("adminSetupForm");
 
-        const formData = new FormData(adminForm);
-        const adminProps = Object.fromEntries(formData);
+  adminForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-        // Estructura final adaptada a Pydantic
-        // Construimos el diccionario de tokens de plataformas
-        const tokensPlataformas = {};
-        
-        // Buscamos todas las llaves que empiezan con "token_" en el formulario
-        for (const [key, value] of Object.entries(adminProps)) {
-            if (key.startsWith("token_")) {
-                const cleanKey = key.replace("token_", "");
-                tokensPlataformas[cleanKey] = value;
-                // Borramos la clave suelta para que no quede sucia
-                delete adminProps[key];
-            }
-        }
+    const formData = new FormData(adminForm);
+    const adminProps = Object.fromEntries(formData);
+    const tokensPlataformas = {};
 
-        // Armamos el JSON final que coincidirá con tu BaseModel
-        const finalJsonPayload = {
-            AI_System_Prompt: adminProps.AI_System_Prompt,
-            tokens_plataformas: tokensPlataformas
-        };
+    // Agrupar los tokens dinámicos en un sub-diccionario
+    for (const [key, value] of Object.entries(adminProps)) {
+      if (key.startsWith("token_")) {
+        const cleanKey = key.replace("token_", "");
+        tokensPlataformas[cleanKey] = value;
+        delete adminProps[key];
+      }
+    }
 
-        const submitBtn = document.getElementById("activateBtn");
-        submitBtn.innerHTML = "Guardando... ⏳";
-        submitBtn.disabled = true;
+    // Capturamos el System Prompt evaluando mayúsculas y minúsculas de forma segura
+    const systemPromptValue =
+      adminProps.AI_System_Prompt || adminProps.ai_system_prompt || "";
 
-        // Simulación del Fetch al Backend
-        setTimeout(() => {
-            console.log("=== DATOS DE ACTIVACIÓN ADMIN (JSON) ===");
-            console.log(JSON.stringify(finalJsonPayload, null, 2));
+    // Construcción del JSON Payload final mapeado idénticamente a RegisterData en Python
+    const finalJsonPayload = {
+      ai_system_prompt: systemPromptValue, // <-- CORREGIDO EN MINÚSCULAS CON SNAKE_CASE
+      tokens_platforms: tokensPlataformas,
+    };
 
-            // Mostrar pantalla de éxito
-            document.getElementById("successScreen").classList.add("active");
-            
-        }, 1200);
+    const submitBtn = document.getElementById("activateBtn");
+    const textoOriginalBtn = submitBtn.innerHTML;
 
-        /* EJEMPLO DE ENVÍO REAL:
-        fetch('/api/activar-inquilino/ID_AQUI', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(finalJsonPayload)
-        }).then(...)
-        */
-    });
+    // Bloquear controles visuales
+    submitBtn.innerHTML = "Guardando... ⏳";
+    submitBtn.disabled = true;
+
+    // Ruta de registro dinámica en tu backend
+    const urlRegister = `${ORIGEN_SERVIDOR}/api/v1/tenants/register/${encodeURIComponent(llaveSesion)}`;
+
+    try {
+      console.log("Enviando datos de registro a:", urlRegister);
+
+      const responseRegister = await fetch(urlRegister, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(finalJsonPayload),
+      });
+
+      if (!responseRegister.ok) {
+        throw new Error(
+          `Error al registrar: ${responseRegister.status} ${responseRegister.statusText}`,
+        );
+      }
+
+      const resultadoRegistro = await responseRegister.json();
+      console.log(
+        "Servidor procesó la activación con éxito:",
+        resultadoRegistro,
+      );
+
+      // Mostrar pantalla de éxito integrada en tu HTML
+      document.getElementById("successScreen").classList.add("active");
+    } catch (error) {
+      console.error("Error en el envío del formulario:", error);
+      alert("Hubo un error al intentar activar el ecosistema del inquilino.");
+
+      // Restaurar el botón para permitir reintentos al usuario si la transacción falla
+      submitBtn.innerHTML = textoOriginalBtn;
+      submitBtn.disabled = false;
+    }
+  });
 });

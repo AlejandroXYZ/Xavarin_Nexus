@@ -9,6 +9,7 @@ from app.clients.db import lifespan_db
 from app.clients.odoo_jsonrpc import lifespan_http_odoo
 from app.api.register import register_router
 from fastapi.staticfiles import StaticFiles
+from app.clients.redis import lifespan_redis
 
 dotenv.load_dotenv()
 
@@ -26,6 +27,7 @@ async def lifespan_main(app: FastAPI):
     async with AsyncExitStack() as stack:
         await stack.enter_async_context(lifespan_db(app))
         await stack.enter_async_context(lifespan_http_odoo(app))
+        await stack.enter_async_context(lifespan_redis(app))
 
         yield
 

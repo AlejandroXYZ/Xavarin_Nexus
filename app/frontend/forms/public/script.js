@@ -138,7 +138,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (index === currentStepIndex) {
         step.classList.add("active");
 
-        // Anclaje estricto a la izquierda para evitar scroll horizontal accidental
         step.scrollTop = 0;
         step.scrollLeft = 0;
         const plansBox = step.querySelector(".plans-container");
@@ -242,82 +241,124 @@ document.addEventListener("DOMContentLoaded", () => {
     const formData = new FormData(form);
     const formProps = Object.fromEntries(formData);
 
-    // Capturar número de teléfono
-    // ... (después de const formProps = Object.fromEntries(formData);)
+    // ==========================================================
+    // LIMPIEZA ESTRICTA PARA PYDANTIC (FASTAPI)
+    // ==========================================================
 
-    // 1. Número Telefónico (E.164)
+    // 1. Número Telefónico
     formProps.phone_number = iti.getNumber();
 
-    // 2. Odoo (Pydantic HttpUrl | None)
-    if (formProps.uses_odoo === "no" || formProps.odoo_url.trim() === "") {
-      formProps.odoo_url = null; // IMPORTANTÍSIMO: null para que Pydantic asigne None
+    // 2. Forzar Enums a minúsculas y sin tildes
+    if (formProps.payment_plan) {
+        formProps.payment_plan = formProps.payment_plan.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    }
+    if (formProps.attention_tone) {
+        if (formProps.attention_tone === "amigable") formProps.attention_tone = "amable";
+        formProps.attention_tone = formProps.attention_tone.toLowerCase();
+    }
+
+    // 3. Odoo (HttpUrl | None) - Forzar https://
+    if (formProps.uses_odoo === "no" || !formProps.odoo_url || formProps.odoo_url.trim() === "") {
+      formProps.odoo_url = null; 
+    } else {
+      if (!/^https?:\/\//i.test(formProps.odoo_url)) {
+          formProps.odoo_url = "https://" + formProps.odoo_url;
+      }
     }
     delete formProps.uses_odoo;
 
-    // 3. Website (Pydantic HttpUrl | None)
-    if (formProps.website.trim() === "") {
+    // 4. Website (HttpUrl | None) - Forzar https://
+    if (!formProps.website || formProps.website.trim() === "") {
       formProps.website = null;
+    } else {
+      if (!/^https?:\/\//i.test(formProps.website)) {
+          formProps.website = "https://" + formProps.website;
+      }
     }
 
-    // 4. Transformar strings vacíos a null (Opcionales)
-    if (!formProps.exact_address) formProps.exact_address = null;
-    if (!formProps.schedule) formProps.schedule = null;
-    if (!formProps.bank_details) formProps.bank_details = null;
+    // 5. Transformar strings vacíos a null (Opcionales)
+    if (!formProps.exact_address || formProps.exact_address.trim() === "") formProps.exact_address = null;
+    if (!formProps.schedule || formProps.schedule.trim() === "") formProps.schedule = null;
+    if (!formProps.bank_details || formProps.bank_details.trim() === "") formProps.bank_details = null;
 
-    // 5. Envíos y Garantías
-    if (formProps.has_shipping === "no" || !formProps.shipping_policies) {
+    // 6. Envíos y Garantías
+    if (formProps.has_shipping === "no" || !formProps.shipping_policies || formProps.shipping_policies.trim() === "") {
       formProps.shipping_policies = null;
     }
     delete formProps.has_shipping;
 
-    if (formProps.has_warranty === "no" || !formProps.warranty_policies) {
+    if (formProps.has_warranty === "no" || !formProps.warranty_policies || formProps.warranty_policies.trim() === "") {
       formProps.warranty_policies = null;
     }
     delete formProps.has_warranty;
 
-    // 6. Redes Sociales (dict[str, str] | None)
+    // 7. Redes Sociales
     formProps.social_networks = {};
-    if (formProps["red social 1"])
+    if (formProps["red social 1"] && formProps["red social 1"].trim() !== "") 
       formProps.social_networks.red_1 = formProps["red social 1"];
-    if (formProps["red social 2"])
+    
+    if (formProps["red social 2"] && formProps["red social 2"].trim() !== "") 
       formProps.social_networks.red_2 = formProps["red social 2"];
-    if (formProps["red social 3"])
+    
+    if (formProps["red social 3"] && formProps["red social 3"].trim() !== "") 
       formProps.social_networks.red_3 = formProps["red social 3"];
 
     if (Object.keys(formProps.social_networks).length === 0) {
-      formProps.social_networks = null; // Si está vacío, mandamos null
+      formProps.social_networks = null; 
     }
 
     delete formProps["red social 1"];
     delete formProps["red social 2"];
     delete formProps["red social 3"];
 
-    // ... (sigue con fetch a tu API)
+    // ==========================================================
+    // CAPTURAR PARÁMETRO DE SESIÓN DE LA RUTA
+    // ==========================================================
     const submitBtn = document.getElementById("submitBtn");
     submitBtn.innerHTML = "Enviando... ⏳";
     submitBtn.disabled = true;
 
-    // Petición al Backend
-    fetch("/api/recibir-datos-onboarding", {
+    const currentPath = window.location.pathname.replace(/\/$/, "");
+    const sesionId = currentPath.substring(currentPath.lastIndexOf("/") + 1);
+
+    if (!sesionId || sesionId === "public" || sesionId === "form") {
+      alert("Error crítico: No se encontró la llave de sesión en la URL.");
+      submitBtn.innerHTML = "Finalizar 🎉";
+      submitBtn.disabled = false;
+      return;
+    }
+
+    const apiRoute = `/api/v1/tenants/form/completed/${encodeURIComponent(sesionId)}`;
+
+    // ==========================================================
+    // PETICIÓN AL BACKEND CON LECTURA DE ERROR 422
+    // ==========================================================
+    fetch(apiRoute, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(formProps),
     })
-      .then((response) => {
+      .then(async (response) => {
         if (response.ok) {
-          window.location.href = "exito.html";
-        } else {
-          // (Para pruebas sin backend: forzamos ir al éxito de todas formas)
-          console.log("JSON GENERADO:", formProps);
           window.location.href = "/static/forms/public/exito.html";
+        } else {
+          // Leer la queja exacta de Pydantic
+          const errorData = await response.json();
+          console.error("FastAPI rechazó los datos:", errorData);
+          
+          alert("FastAPI rechazó los datos (Error " + response.status + ").\n\nMotivo:\n" + JSON.stringify(errorData.detail, null, 2));
+          
+          submitBtn.innerHTML = "Finalizar 🎉";
+          submitBtn.disabled = false;
         }
       })
       .catch((error) => {
-        // (Para pruebas sin backend: forzamos ir al éxito de todas formas)
-        console.log("JSON GENERADO:", formProps);
-        window.location.href = "/static/forms/public/exito.html";
+        console.error("Error de conexión:", error);
+        alert("Error de conexión. Revisa la consola.");
+        submitBtn.innerHTML = "Finalizar 🎉";
+        submitBtn.disabled = false;
       });
   });
 

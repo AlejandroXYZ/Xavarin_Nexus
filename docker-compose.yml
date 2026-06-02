@@ -51,6 +51,8 @@ services:
       - "6379:6379"
     volumes:
       - redis-volume:/data
+    networks:
+      - main-network
 
 networks:
   main-network:
