@@ -15,7 +15,9 @@ while ! docker-compose exec -T db pg_isready -U "$POSTGRES_USER" >/dev/null 2>/d
 done
 echo " Listo!"
 
-echo "Configurando la Contraseña Maestra de Odoo automáticamente..."
+echo "Configurando la Contraseña Maestra y Proxy en Odoo..."
+
+[[ "$ENTORNO" == "desarrollo" ]] && estado="False" || estado="True"
 
 docker-compose exec -T odoo python3 -c "
 import configparser
@@ -26,8 +28,11 @@ config.read('/etc/odoo/odoo.conf')
 if not config.has_section('options'):
     config.add_section('options')
 
-# Escribimos la contraseña maestra maestra global
+# Escribimos la contraseña maestra global
 config.set('options', 'admin_passwd', '${MASTER_PASSWORD}')
+
+# En producción DEBE ser True. En local puede ser False porque no hay proxy.
+config.set('options', 'proxy_mode', '$estado')
 
 with open('/etc/odoo/odoo.conf', 'w') as f:
     config.write(f)
@@ -45,14 +50,13 @@ if [ "$DB_EXISTE" = "1" ]; then
   echo "La base de datos '$DB' ya existe"
 else
   echo "Base de datos nueva detectada. Ejecutando instalación de módulos de Odoo..."
-  docker-compose run --rm odoo odoo -d "$DB" -i base,sale,stock,mail,base_automation --stop-after-init
+  docker-compose run --rm odoo odoo -d "$DB" -i base,sale,stock,mail,base_automation --load-language=es_VE --stop-after-init
 
   echo "Cambiando la contraseña del usuario administrador interno..."
   echo "env.ref('base.user_admin').write({'password': '${ODOO_PASSWORD_ADMIN_BASE}'}); env.cr.commit()" | docker-compose run --rm -T odoo odoo shell -d "$DB"
 
   echo "Creando Usuario Bot y generando API Key"
 
-  # 1. Escribimos un script de Python multilínea para el Odoo Shell
   BOT_SCRIPT=$(
     cat <<'EOF'
 import datetime 
@@ -96,6 +100,6 @@ EOF
   fi
 fi
 
-echo " Levantando el resto de los servicios de la aplicación"
+echo "Levantando el resto de los servicios de la aplicación..."
 
 docker-compose up -d

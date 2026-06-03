@@ -31,7 +31,7 @@ async def generar_enlace_inquilino(request: Request, name: str):
     logger.info("Generando URL para Nuevo Inquilino")
     redis = request.app.state.redis
     token = secrets.token_urlsafe(32)
-    name = name.replace(" ", "").strip()
+    name = name.replace(" ", "").strip().lower()
     llave_sesion = f"form:public:{name}"
     await redis.set(llave_sesion, token, ex=172800)
     url_base = os.getenv("URL_API_BASE", "http://localhost:8000")
@@ -77,7 +77,7 @@ async def guardar_datos_formulario_inquilino(
     try:
         logger.info("Guardando datos en Redis")
         nombre = data.name.replace(" ", "").strip()
-        llave_datos = f"tenant:admin:{nombre}"
+        llave_datos = f"tenant:admin:{nombre.lower()}"
         datos = data.model_dump_json()
         await redis.set(llave_datos, datos, ex=86400)
         logger.info(f"Datos Guardados en Redis bajo la llave: {llave_datos}")

@@ -31,6 +31,8 @@ services:
       - db
     env_file:
       - .env
+    
+    command: odoo --db-filter="^%d$$" --no-database-list
     networks:
       - main-network
     ports:

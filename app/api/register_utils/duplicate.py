@@ -1,6 +1,6 @@
-from fastapi import HTTPException, status
-import os
 import logging
+import os
+from fastapi import HTTPException, status
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ async def duplicar_db_odoo(url: str, client, new_db_name: str) -> bool:
 
         if response.status_code != 200 and response.status_code != 303:
             raise RuntimeError(
-                f"Fallo al clonar Odoo. Código: {response.status_code}, codigo de respuesta no esperado"
+                f"Fallo al clonar Odoo. Código: {response.status_code}, código de respuesta no esperado"
             )
 
         logger.info("DB Clonada Perfectamente")
@@ -31,18 +31,22 @@ async def duplicar_db_odoo(url: str, client, new_db_name: str) -> bool:
 
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
 
 
 async def duplicate_schema(db, schema_name: str):
-    """Duplica el Schema Plantilla para el nuevo inquilino"""
+    """Duplica el Schema Plantilla para el nuevo inquilino en Postgres"""
+
+    safe_schema = f'"{schema_name}"'
+
     try:
-        logger.info("Duplicando Schema...")
-        await db.execute(f"CREATE SCHEMA IF NOT EXISTS {schema_name};")
+        logger.info(f"Duplicando Schema de Postgres para: {schema_name}...")
+
+        await db.execute(f"CREATE SCHEMA IF NOT EXISTS {safe_schema};")
 
         await db.execute(f"""
-            CREATE TABLE IF NOT EXISTS {schema_name}.catalog (
+            CREATE TABLE IF NOT EXISTS {safe_schema}.catalog (
                 id_odoo INTEGER PRIMARY KEY, 
                 name TEXT NOT NULL,
                 description TEXT,
@@ -54,34 +58,37 @@ async def duplicate_schema(db, schema_name: str):
                 metadata JSONB DEFAULT '{{}}'::jsonb
             );
             
-                -- Métrica del Coseno (vector_cosine_ops) para modelos de embeddings
-                CREATE INDEX IF NOT EXISTS idx_catalog_embedding 
-                ON {schema_name}.catalog 
-                USING hnsw (embedding vector_cosine_ops);
+            CREATE INDEX IF NOT EXISTS catalog_embedding_idx 
+            ON {safe_schema}.catalog 
+            USING hnsw (embedding vector_cosine_ops);
 
-                -- Índice para búsquedas rápidas por nombre
-                CREATE INDEX IF NOT EXISTS idx_{schema_name}_catalog_name ON {schema_name}.catalog(name);
-            """)
-
-        await db.execute(f"""CREATE TABLE IF NOT EXISTS {schema_name}.clients (
-        id UUID PRIMARY KEY,
-        name TEXT NOT NULL,
-        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMPTZ,
-        platform TEXT NOT NULL,
-        platform_user TEXT UNIQUE NOT NULL,
-        status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','waiting_for_sale','waiting_for_support')),
-        metadata JSONB DEFAULT '{{}}'::jsonb);
-
-        CREATE INDEX IF NOT EXISTS idx_{schema_name}_clients_name ON {schema_name}.clients(name);
-        CREATE INDEX IF NOT EXISTS idx_{schema_name}_clients_platform ON {schema_name}.clients(platform);
-        CREATE INDEX IF NOT EXISTS idx_{schema_name}_clients_status ON {schema_name}.clients(status);
-
+            CREATE INDEX IF NOT EXISTS catalog_name_idx 
+            ON {safe_schema}.catalog(name);
         """)
 
-        logger.info(f"Esquema Clonado Perfectamente con el nombre {schema_name}")
+        await db.execute(f"""
+            CREATE TABLE IF NOT EXISTS {safe_schema}.clients (
+                id UUID PRIMARY KEY,
+                name TEXT NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ,
+                platform TEXT NOT NULL,
+                platform_user TEXT UNIQUE NOT NULL,
+                status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','waiting_for_sale','waiting_for_support')),
+                metadata JSONB DEFAULT '{{}}'::jsonb
+            );
+
+            CREATE INDEX IF NOT EXISTS clients_name_idx ON {safe_schema}.clients(name);
+            CREATE INDEX IF NOT EXISTS clients_platform_idx ON {safe_schema}.clients(platform);
+            CREATE INDEX IF NOT EXISTS clients_status_idx ON {safe_schema}.clients(status);
+        """)
+
+        logger.info(f"Esquema de Postgres clonado perfectamente: {schema_name}")
+
     except Exception as e:
-        logger.error(f"Error durante la clonacion de la DB de odoo: {e}")
+        logger.error(
+            f"Fallo Crítico al crear el esquema en Postgres [{schema_name}]: {e}"
+        )
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
