@@ -1,4 +1,5 @@
 from cryptography.fernet import Fernet
+import json
 import os
 
 llave_encriptada = os.getenv(
@@ -19,3 +20,20 @@ def desencriptar(token: str) -> str:
     token_bytes = token.encode("utf-8")
     token_desencriptado = encrypter.decrypt(token_bytes)
     return token_desencriptado.decode("utf-8")
+
+
+def preparar_tokens_para_db(tokens: dict[str, str]) -> str:
+    """
+    Recibe un diccionario con los tokens planos y devuelve un JSON string
+    donde solo los valores están encriptados.
+    """
+    tokens_seguros = {}
+
+    for plataforma, token in tokens.items():
+        if token:
+            token_bytes = token.encode("utf-8")
+            token_cifrado = encrypter.encrypt(token_bytes).decode("utf-8")
+            tokens_seguros[plataforma] = token_cifrado
+        else:
+            tokens_seguros[plataforma] = None
+    return json.dumps(tokens_seguros)

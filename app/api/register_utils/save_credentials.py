@@ -1,5 +1,5 @@
 from fastapi import HTTPException, status
-from app.security.encrypter import encriptar
+from app.security.encrypter import encriptar, preparar_tokens_para_db
 import logging
 
 logger = logging.getLogger(__name__)
@@ -12,12 +12,13 @@ async def guardar_credenciales(
     odoo_db: str,
     odoo_bot_user_id: int,
     odoo_bot_api_key: str,
-    tokens_platforms: dict | None = {},
+    tokens_platforms: dict[str, str] = {},
 ):
     try:
         logger.info("Guardando credenciales")
         odoo_url = encriptar(odoo_url)
         odoo_bot_api_key = encriptar(odoo_bot_api_key)
+        tokens_platforms = preparar_tokens_para_db(tokens_platforms)
 
         await db.execute(
             """

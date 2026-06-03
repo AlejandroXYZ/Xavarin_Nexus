@@ -76,7 +76,8 @@ async def init_db():
         features JSONB DEFAULT '{}'::jsonb,
         schema_name TEXT UNIQUE NOT NULL,
         ai_system_prompt TEXT NOT NULL,
-        metadata JSONB DEFAULT '{}'::jsonb 
+        metadata JSONB DEFAULT '{}'::jsonb, 
+        payment_plan TEXT NOT NULL DEFAULT 'basico' CHECK (payment_plan IN ('basico','profesional','enterprise'))
         );
 
         -- INDICES DE RENDIMIENTO

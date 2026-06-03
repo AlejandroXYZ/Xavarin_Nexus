@@ -22,7 +22,9 @@ async def duplicar_db_odoo(url: str, client, new_db_name: str) -> bool:
         response = await client.post(url, data=form_data, timeout=60.0)
 
         if response.status_code != 200 and response.status_code != 303:
-            raise RuntimeError(f"Fallo al clonar Odoo. Código: {response.status_code}")
+            raise RuntimeError(
+                f"Fallo al clonar Odoo. Código: {response.status_code}, codigo de respuesta no esperado"
+            )
 
         logger.info("DB Clonada Perfectamente")
         return True

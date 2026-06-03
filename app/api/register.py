@@ -11,6 +11,7 @@ from app.api.register_utils.register_tenant import registrar_tenant
 from app.api.register_utils.api_key_generator import generar_api_key_bot
 from app.api.register_utils.save_credentials import guardar_credenciales
 from fastapi.responses import FileResponse
+from app.api.register_utils.payment_plans import CONFIGURACION_PLANES
 import secrets
 import json
 
@@ -188,7 +189,11 @@ async def tenants_register(
             logger.info("Iniciando Transaccion en Postgres")
             await duplicate_schema(db=db, schema_name=new_name)
 
-            features = json.dumps(datos_registro.tokens_platforms)
+            plan_elegido = datos_registro.payment_plan.lower()
+            features = json.dumps(
+                CONFIGURACION_PLANES.get("plan_elegido", CONFIGURACION_PLANES["basico"])
+            )
+
             id_tenant = await registrar_tenant(
                 data=datos_registro, db=db, schema_name=new_name, features=features
             )
@@ -200,7 +205,7 @@ async def tenants_register(
                 odoo_bot_user_id=bot_user["bot_uid"],
                 odoo_bot_api_key=bot_user["api_key"],
                 odoo_db=new_name,
-                tokens_platforms=json.dumps(datos_registro.tokens_platforms),
+                tokens_platforms=datos_registro.tokens_platforms,
             )
 
             logger.info("Registrado inquilino perfectamente")

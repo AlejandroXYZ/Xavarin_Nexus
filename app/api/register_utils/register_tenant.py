@@ -2,6 +2,7 @@ from fastapi import HTTPException, status as status_code
 import logging
 from app.schemas.register import RegisterData
 from datetime import datetime, timedelta
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ async def registrar_tenant(
     """Registra al inquilino en la tabla tenants"""
     try:
         id_tenant = await db.fetchval(
-            "INSERT INTO tenants (name,expiry_date,phone_number,email,schema_name,ai_system_prompt,status,country,social_networks,options,features,metadata,description) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id",
+            "INSERT INTO tenants (name,expiry_date,phone_number,email,schema_name,ai_system_prompt,status,country,social_networks,options,features,metadata,description,payment_plan) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id",
             data.name,
             siguiente_mes,
             data.phone_number,
@@ -29,11 +30,12 @@ async def registrar_tenant(
             data.ai_system_prompt,
             "activo",
             data.country,
-            data.social_networks,
+            json.dumps(data.social_networks),
             options,
             features,
             metadata,
             data.description,
+            data.payment_plan,
         )
         logger.info(
             f"Registrado inquilino {data.name} correctamente en la tabla tenants"
