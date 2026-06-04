@@ -5,14 +5,14 @@ from app.ia.groq_IA import groq
 from app.schemas.message import IA_answer, Message
 from app.clients.db import get_db
 
-webhook_router = APIRouter(prefix="/api/v1/webhook/{tenant_id}", tags=["webhook"])
+message_router = APIRouter(prefix="/api/v1/message/{tenant_id}", tags=["message"])
 
 
 logger = logging.getLogger(__name__)
 prompt = "Saluda"
 
 
-@webhook_router.post(
+@message_router.post(
     "/message/",
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(verificar_api)],

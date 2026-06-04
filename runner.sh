@@ -59,8 +59,12 @@ else
 
   BOT_SCRIPT=$(
     cat <<'EOF'
-import datetime 
+import datetime
+import os
 
+# ==========================================
+# 1. CREACIÓN DEL BOT Y API KEY
+# ==========================================
 bot = env['res.users'].search([('login', '=', 'bot@bot.com')], limit=1)
 
 if not bot:
@@ -71,19 +75,59 @@ if not bot:
     })
     
     grupos = [env.ref('base.group_user').id, env.ref('base.group_system').id]
-    
     for gid in grupos:
         env.cr.execute("SELECT 1 FROM res_groups_users_rel WHERE uid=%s AND gid=%s", (bot.id, gid))
         if not env.cr.fetchone():
             env.cr.execute("INSERT INTO res_groups_users_rel (uid, gid) VALUES (%s, %s)", (bot.id, gid))
 
-
 if not env['res.users.apikeys'].search([('user_id', '=', bot.id)]):
-  
     fecha_objeto = datetime.datetime.now() + datetime.timedelta(days=90)
     key = env['res.users.apikeys']._generate('fastapi_integration', bot.id, fecha_objeto)
     print(f"FASTAPI_MAGIC_KEY: {key}")
 
+# ==========================================
+# 2. INYECCIÓN DEL WEBHOOK NATIVO DE ODOO
+# ==========================================
+model_product = env['ir.model'].search([('model', '=', 'product.template')], limit=1)
+
+action = env['ir.actions.server'].search([('name', '=', 'Webhook IA FastAPI')], limit=1)
+
+if not action:
+    import os
+    
+    # 1. Extraemos los IDs de los campos que queremos que Odoo envíe en el JSON
+    campos = ['name', 'description', 'list_price', 'qty_available']
+    field_ids = env['ir.model.fields'].search([
+        ('model', '=', 'product.template'),
+        ('name', 'in', campos)
+    ]).ids
+    
+    # 2. Leemos las variables de entorno inyectadas en Docker
+    base_url = os.getenv("FASTAPI_WEBHOOK_URL", "http://backend:8000/api/v1/webhook/odoo/product")
+    secret = os.getenv("FASTAPI_WEBHOOK_SECRET", "super_secreto")
+    
+    # 3. Magia Multi-Tenant: Inyectamos el nombre de la DB y el Token directo en la URL
+    webhook_url_final = f"{base_url}?tenant={env.cr.dbname}&token={secret}"
+    
+    # 4. Creamos la Acción usando el estado NATIVO 'webhook' (Cero código inyectado)
+    action = env['ir.actions.server'].create({
+        'name': 'Webhook IA FastAPI',
+        'model_id': model_product.id,
+        'state': 'webhook',
+        'webhook_url': webhook_url_final,
+        'webhook_field_ids': [(6, 0, field_ids)] # Odoo armará el JSON automáticamente con estos campos
+    })
+
+    # 5. Creamos el Gatillo
+    env['base.automation'].create({
+        'name': 'Sincronizar Productos con IA',
+        'model_id': model_product.id,
+        'trigger': 'on_create_or_write',
+        'trigger_field_ids': [(6, 0, field_ids)],
+        'action_server_ids': [(4, action.id)]
+    })
+
+# Guardamos todos los cambios en la base de datos
 env.cr.commit()
 EOF
   )

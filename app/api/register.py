@@ -13,6 +13,7 @@ from app.api.register_utils.save_credentials import guardar_credenciales
 from fastapi.responses import FileResponse
 from app.api.register_utils.payment_plans import CONFIGURACION_PLANES
 import secrets
+from app.api.register_utils.update_webhook_odoo import actualizar_webhook_odoo
 import json
 
 logger = logging.getLogger(__name__)
@@ -188,8 +189,6 @@ async def tenants_register(
         async with db.transaction():
             logger.info("Iniciando Transaccion en Postgres")
             await duplicate_schema(db=db, schema_name=new_name)
-
-            plan_elegido = datos_registro.payment_plan.lower()
             features = json.dumps(
                 CONFIGURACION_PLANES.get("plan_elegido", CONFIGURACION_PLANES["basico"])
             )
@@ -208,6 +207,19 @@ async def tenants_register(
                 tokens_platforms=datos_registro.tokens_platforms,
             )
 
+            logger.info("Actualizando Acciones automatizadas")
+            token_secret = os.getenv(
+                "FASTAPI_WEBHOOK_SECRET", "Token_para_webhook_odoo"
+            )
+            await actualizar_webhook_odoo(
+                http_client=client,
+                odoo_url=url,
+                db=new_name,
+                uid=uid,
+                password=password_admin,
+                tenant_id=id_tenant,
+                secret=token_secret,
+            )
             logger.info("Registrado inquilino perfectamente")
             return {"mensaje": "Ejecutado correctamente", "tenant_id": f"{id_tenant}"}
 
