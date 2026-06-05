@@ -124,7 +124,7 @@ async def inyeccion_datos_formulario_admin(request: Request, llave_sesion: str):
 async def generar_formulario_admin(request: Request, llave_sesion: str):
     """Sirve Formulario HTML al admin para completar registro del inquilino"""
     redis = request.app.state.redis
-    if not redis.exists(llave_sesion):
+    if not await redis.exists(llave_sesion):
         logger.error("Intento de sesion con enlace expirado")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Enlace Expirado"
@@ -189,8 +189,9 @@ async def tenants_register(
         async with db.transaction():
             logger.info("Iniciando Transaccion en Postgres")
             await duplicate_schema(db=db, schema_name=new_name)
+            plan = datos_registro.payment_plan.lower()
             features = json.dumps(
-                CONFIGURACION_PLANES.get("plan_elegido", CONFIGURACION_PLANES["basico"])
+                CONFIGURACION_PLANES.get(plan, CONFIGURACION_PLANES["basico"])
             )
 
             id_tenant = await registrar_tenant(
@@ -217,7 +218,6 @@ async def tenants_register(
                 db=new_name,
                 uid=uid,
                 password=password_admin,
-                tenant_id=id_tenant,
                 secret=token_secret,
             )
             logger.info("Registrado inquilino perfectamente")

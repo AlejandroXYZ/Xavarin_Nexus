@@ -7,7 +7,6 @@ async def actualizar_webhook_odoo(
     db: str,
     uid: int,
     password: str,
-    tenant_id: str,
     secret: str,
 ):
     """Busca la acción de Automatización del Inventario del Webhook en Odoo y le inyecta el nombre real del inquilino"""
@@ -34,7 +33,7 @@ async def actualizar_webhook_odoo(
     action_ids = response.json().get("result")
 
     if action_ids:
-        nueva_url = f"{base_url}/api/v1/catalog/?tenant={tenant_id}&token={secret}"
+        nueva_url = f"{base_url}/api/v1/catalog/{db}?token={secret}"
 
         payload_write = {
             "jsonrpc": "2.0",

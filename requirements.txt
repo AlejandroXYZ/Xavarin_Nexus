@@ -11,3 +11,4 @@ fastembed
 redis
 cryptography
 phonenumbers
+arq

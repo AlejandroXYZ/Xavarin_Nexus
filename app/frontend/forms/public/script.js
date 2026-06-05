@@ -250,19 +250,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 2. Forzar Enums a minúsculas y sin tildes
     if (formProps.payment_plan) {
-        formProps.payment_plan = formProps.payment_plan.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      formProps.payment_plan = formProps.payment_plan
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
     }
     if (formProps.attention_tone) {
-        if (formProps.attention_tone === "amigable") formProps.attention_tone = "amable";
-        formProps.attention_tone = formProps.attention_tone.toLowerCase();
+      if (formProps.attention_tone === "amigable")
+        formProps.attention_tone = "amable";
+      formProps.attention_tone = formProps.attention_tone.toLowerCase();
     }
 
     // 3. Odoo (HttpUrl | None) - Forzar https://
-    if (formProps.uses_odoo === "no" || !formProps.odoo_url || formProps.odoo_url.trim() === "") {
-      formProps.odoo_url = null; 
+    if (
+      formProps.uses_odoo === "no" ||
+      !formProps.odoo_url ||
+      formProps.odoo_url.trim() === ""
+    ) {
+      formProps.odoo_url = null;
     } else {
       if (!/^https?:\/\//i.test(formProps.odoo_url)) {
-          formProps.odoo_url = "https://" + formProps.odoo_url;
+        formProps.odoo_url = "https://" + formProps.odoo_url;
       }
     }
     delete formProps.uses_odoo;
@@ -272,39 +280,50 @@ document.addEventListener("DOMContentLoaded", () => {
       formProps.website = null;
     } else {
       if (!/^https?:\/\//i.test(formProps.website)) {
-          formProps.website = "https://" + formProps.website;
+        formProps.website = "https://" + formProps.website;
       }
     }
 
     // 5. Transformar strings vacíos a null (Opcionales)
-    if (!formProps.exact_address || formProps.exact_address.trim() === "") formProps.exact_address = null;
-    if (!formProps.schedule || formProps.schedule.trim() === "") formProps.schedule = null;
-    if (!formProps.bank_details || formProps.bank_details.trim() === "") formProps.bank_details = null;
+    if (!formProps.exact_address || formProps.exact_address.trim() === "")
+      formProps.exact_address = null;
+    if (!formProps.schedule || formProps.schedule.trim() === "")
+      formProps.schedule = null;
+    if (!formProps.bank_details || formProps.bank_details.trim() === "")
+      formProps.bank_details = null;
 
     // 6. Envíos y Garantías
-    if (formProps.has_shipping === "no" || !formProps.shipping_policies || formProps.shipping_policies.trim() === "") {
+    if (
+      formProps.has_shipping === "no" ||
+      !formProps.shipping_policies ||
+      formProps.shipping_policies.trim() === ""
+    ) {
       formProps.shipping_policies = null;
     }
     delete formProps.has_shipping;
 
-    if (formProps.has_warranty === "no" || !formProps.warranty_policies || formProps.warranty_policies.trim() === "") {
+    if (
+      formProps.has_warranty === "no" ||
+      !formProps.warranty_policies ||
+      formProps.warranty_policies.trim() === ""
+    ) {
       formProps.warranty_policies = null;
     }
     delete formProps.has_warranty;
 
     // 7. Redes Sociales
     formProps.social_networks = {};
-    if (formProps["red social 1"] && formProps["red social 1"].trim() !== "") 
+    if (formProps["red social 1"] && formProps["red social 1"].trim() !== "")
       formProps.social_networks.red_1 = formProps["red social 1"];
-    
-    if (formProps["red social 2"] && formProps["red social 2"].trim() !== "") 
+
+    if (formProps["red social 2"] && formProps["red social 2"].trim() !== "")
       formProps.social_networks.red_2 = formProps["red social 2"];
-    
-    if (formProps["red social 3"] && formProps["red social 3"].trim() !== "") 
+
+    if (formProps["red social 3"] && formProps["red social 3"].trim() !== "")
       formProps.social_networks.red_3 = formProps["red social 3"];
 
     if (Object.keys(formProps.social_networks).length === 0) {
-      formProps.social_networks = null; 
+      formProps.social_networks = null;
     }
 
     delete formProps["red social 1"];
@@ -323,7 +342,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!sesionId || sesionId === "public" || sesionId === "form") {
       alert("Error crítico: No se encontró la llave de sesión en la URL.");
-      submitBtn.innerHTML = "Finalizar 🎉";
+      submitBtn.innerHTML = "Finalizar ";
       submitBtn.disabled = false;
       return;
     }
@@ -347,9 +366,14 @@ document.addEventListener("DOMContentLoaded", () => {
           // Leer la queja exacta de Pydantic
           const errorData = await response.json();
           console.error("FastAPI rechazó los datos:", errorData);
-          
-          alert("FastAPI rechazó los datos (Error " + response.status + ").\n\nMotivo:\n" + JSON.stringify(errorData.detail, null, 2));
-          
+
+          alert(
+            "FastAPI rechazó los datos (Error " +
+              response.status +
+              ").\n\nMotivo:\n" +
+              JSON.stringify(errorData.detail, null, 2),
+          );
+
           submitBtn.innerHTML = "Finalizar 🎉";
           submitBtn.disabled = false;
         }

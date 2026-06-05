@@ -56,6 +56,19 @@ services:
     networks:
       - main-network
 
+  worker:
+    build: .
+    container_name: "worker"
+    networks:
+      - main-network
+    depends_on:
+      - redis
+      - db
+      - odoo
+    command: arq worker.WorkerSettings
+    env_file:
+      - .env
+
 networks:
   main-network:
 
@@ -64,3 +77,4 @@ volumes:
   n8n-volume:
   odoo-volume:
   redis-volume:
+  worker-volume:

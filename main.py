@@ -11,6 +11,7 @@ from app.api.register import register_router
 from fastapi.staticfiles import StaticFiles
 from app.clients.redis import lifespan_redis
 from app.api.catalog import catalog_router
+from app.clients.worker import lifespan_worker
 
 dotenv.load_dotenv()
 
@@ -29,6 +30,7 @@ async def lifespan_main(app: FastAPI):
         await stack.enter_async_context(lifespan_db(app))
         await stack.enter_async_context(lifespan_http_odoo(app))
         await stack.enter_async_context(lifespan_redis(app))
+        await stack.enter_async_context(lifespan_worker(app))
 
         yield
 
