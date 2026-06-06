@@ -10,7 +10,7 @@ api_key = os.getenv("API_KEY_IA", "12121")
 client = AsyncGroq(api_key=api_key)
 
 
-async def groq(prompt: str, message: str) -> dict:
+async def groq(prompt: str, message: str) -> dict[str, str | bool | None]:
     try:
         if not api_key:
             logger.info("No se encuentra la API KEY en las variables de entorno")

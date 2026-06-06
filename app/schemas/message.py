@@ -3,7 +3,7 @@ from typing import Optional, Union
 
 
 class IA_answer(BaseModel):
-    product: Optional[Union[str, bool]] = None
+    product: str
     intent: str
     text: Optional[Union[str, bool]] = None
     answer: Optional[str] = None

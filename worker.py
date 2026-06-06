@@ -68,7 +68,7 @@ async def actualizar_inventario_odoo(ctx, tenant: str):
             datos_para_postgres.append(fila)
 
         query = f"""
-            INSERT INTO {tenant}.catalog (id_odoo, name, description,stock,price, embedding)
+            INSERT INTO "{tenant}".catalog (id_odoo, name, description,stock,price, embedding)
             VALUES ($1, $2, $3, $4, $5, $6)
             
             ON CONFLICT (id_odoo) 
