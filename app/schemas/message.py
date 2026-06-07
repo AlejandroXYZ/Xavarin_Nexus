@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel
 from typing import Optional, Union
 
@@ -11,7 +12,8 @@ class IA_answer(BaseModel):
 
 class Message(BaseModel):
     platform: str
-    id_shop: int
-    customer_id: int
-    customer_name: str
-    text: str
+    platform_user_id: str | int
+    user_name: str
+    content: str
+    created_at: datetime
+    type: Optional[str]

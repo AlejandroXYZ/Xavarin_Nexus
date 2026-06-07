@@ -44,8 +44,6 @@ async def init_db():
 
         await conn.close()
 
-        # Conectando como admin en la nueva DB para activar la extension de vectores
-        #
         conn = await asyncpg.connect(
             host=host, user=user, password=password, database=new_db
         )
@@ -147,10 +145,20 @@ async def init_db():
         status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','waiting_for_sale','waiting_for_support')),
         metadata JSONB DEFAULT '{}'::jsonb);
 
-        CREATE INDEX IF NOT EXISTS idx_clients_name ON tenant_schema_template.clients(name);
-        CREATE INDEX IF NOT EXISTS idx_clients_platform ON tenant_schema_template.clients(platform);
-        CREATE INDEX IF NOT EXISTS idx_clients_status ON tenant_schema_template.clients(status);
+        CREATE INDEX IF NOT EXISTS idx_catalog_name ON tenant_schema_template.clients(name);
 
+        """)
+
+        await conn.execute("""CREATE TABLE IF NOT EXISTS tenant_schema_template.messages (
+        id UUID PRIMARY KEY,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+        platform TEXT NOT NULL,
+        platform_user_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        metadata JSONB DEFAULT '{}'::jsonb);
+
+        CREATE INDEX IF NOT EXISTS idx_messages_user_time ON tenant_schema_template.messages(platform_user_id, created_at DESC);
         """)
 
         logger.info("Entorno de base de datos listo")
