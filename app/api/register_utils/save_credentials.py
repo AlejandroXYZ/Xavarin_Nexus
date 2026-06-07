@@ -18,7 +18,7 @@ async def guardar_credenciales(
         logger.info("Guardando credenciales")
         odoo_url = encriptar(odoo_url)
         odoo_bot_api_key = encriptar(odoo_bot_api_key)
-        tokens_platforms = preparar_tokens_para_db(tokens_platforms)
+        tokens_platforms = preparar_tokens_para_db(tokens_platforms, accion="encriptar")
 
         await db.execute(
             """

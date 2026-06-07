@@ -22,18 +22,28 @@ def desencriptar(token: str) -> str:
     return token_desencriptado.decode("utf-8")
 
 
-def preparar_tokens_para_db(tokens: dict[str, str]) -> str:
+def preparar_tokens_para_db(tokens: dict[str, str], accion: str) -> str:
     """
     Recibe un diccionario con los tokens planos y devuelve un JSON string
     donde solo los valores están encriptados.
     """
-    tokens_seguros = {}
+    tokens_listos = {}
 
-    for plataforma, token in tokens.items():
-        if token:
-            token_bytes = token.encode("utf-8")
-            token_cifrado = encrypter.encrypt(token_bytes).decode("utf-8")
-            tokens_seguros[plataforma] = token_cifrado
-        else:
-            tokens_seguros[plataforma] = None
-    return json.dumps(tokens_seguros)
+    if accion == "encriptar":
+        for plataforma, token in tokens.items():
+            if token:
+                token_bytes = token.encode("utf-8")
+                token_cifrado = encrypter.encrypt(token_bytes).decode("utf-8")
+                tokens_listos[plataforma] = token_cifrado
+            else:
+                tokens_listos[plataforma] = None
+        return json.dumps(tokens_listos)
+    elif accion == "desencriptar":
+        for plataforma, token in tokens.items():
+            if token:
+                token_bytes = token.encode("utf-8")
+                token_desencriptado = encrypter.decrypt(token_bytes).decode("utf-8")
+                tokens_listos[plataforma] = token_desencriptado
+            else:
+                tokens_listos[plataforma] = None
+        return json.dumps(tokens_listos)

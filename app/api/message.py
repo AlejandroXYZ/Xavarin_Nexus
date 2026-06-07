@@ -1,10 +1,11 @@
-from fastapi import APIRouter, status, Depends, HTTPException
+from fastapi import APIRouter, Request, status, Depends, HTTPException
 from app.security.x_api_key import verificar_api
 import logging
 from app.ia.groq_IA import groq
 from app.schemas.message import IA_answer, Message
-from app.clients.db import get_db
 from app.ia.product_embedding import product_embedding
+from app.api.catalog_utils.cache import save_cache_data
+import json
 
 message_router = APIRouter(prefix="/api/v1/message/{tenant_db}", tags=["message"])
 
@@ -17,14 +18,16 @@ logger = logging.getLogger(__name__)
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(verificar_api)],
 )
-async def message_handler(message: Message, tenant_db: str, db=Depends(get_db)):
+async def message_handler(message: Message, tenant_db: str, request: Request):
+    db = request.app.state.db
+    redis = request.app.state.redis
+    llave = f"cache:{tenant_db}"
+    if not await redis.exists(llave):
+        logger.info(f"Generando caché con los datos del inquilino {tenant_db}")
+        await save_cache_data(tenant=tenant_db, db=db, redis=redis, redis_key=llave)
+    datos = json.loads(await redis.get(llave))
+    prompt = datos["ai_system_prompt"]
     try:
-        prompt = await db.fetchval(
-            """
-    SELECT ai_system_prompt FROM tenants WHERE schema_name = $1;
-    """,
-            tenant_db,
-        )
         if prompt is None:
             logger.error("No se pudo obtener el system prompt del inquilino")
             raise HTTPException(
@@ -55,7 +58,10 @@ async def message_handler(message: Message, tenant_db: str, db=Depends(get_db)):
             case "another":
                 return "another"
             case _:
-                return "error"
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Mensaje no válido",
+                )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
