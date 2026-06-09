@@ -1,9 +1,13 @@
 from app.translators.telegram import telegram_translator
+from app.translators.whatsaap import whatsapp_translator
 import logging
 
 logger = logging.getLogger(__name__)
 
-REGISTRO_TRADUCTORES = {"TELEGRAM": telegram_translator}
+REGISTRO_TRADUCTORES = {
+    "TELEGRAM": telegram_translator,
+    "WHATSAPP": whatsapp_translator,
+}
 
 
 class Translator:
@@ -18,4 +22,3 @@ class Translator:
             logger.error(f"Plataforma no soportada pasada: {plataforma}")
             raise ValueError(f"La plataforma {plataforma} no está soportada.")
         return traductor_func(payload)
-

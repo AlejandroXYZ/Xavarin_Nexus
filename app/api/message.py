@@ -37,6 +37,7 @@ async def message_handler(
         logger.info(f"Generando caché con los datos del inquilino {tenant_db}")
         await save_cache_data(tenant=tenant_db, db=db, redis=redis, redis_key=llave)
     datos = json.loads(await redis.get(llave))
+    logger.info(datos)
     if platform not in datos["tokens_platforms"]:
         logger.info(
             "Plataforma no válida, inquilino no tiene esa plataforma disponible"
