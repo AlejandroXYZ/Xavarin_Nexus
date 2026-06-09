@@ -1,5 +1,13 @@
 from app.clients.db import get_db
-from fastapi import APIRouter, Depends, status, Request, HTTPException, Response
+from fastapi import (
+    APIRouter,
+    Depends,
+    status,
+    Request,
+    HTTPException,
+    Response,
+    BackgroundTasks,
+)
 from app.security.x_api_key import verificar_api
 from app.schemas.register import Form, FormAdmin, RegisterData
 import logging
@@ -135,7 +143,11 @@ async def generar_formulario_admin(request: Request, llave_sesion: str):
 
 @register_router.post("/register/{llave_sesion}", status_code=status.HTTP_201_CREATED)
 async def tenants_register(
-    data: FormAdmin, request: Request, llave_sesion: str, db=Depends(get_db)
+    data: FormAdmin,
+    request: Request,
+    llave_sesion: str,
+    background_tasks: BackgroundTasks,
+    db=Depends(get_db),
 ):
     """
     Registra a los nuevos inquilinos con los datos del formulario
@@ -173,7 +185,9 @@ async def tenants_register(
         )
         logger.info(f"ID de usuario {usuario_admin} es {uid}")
         logger.info(f"Duplicando plantilla hacia: {new_name}")
-        await duplicar_db_odoo(url=url, client=client, new_db_name=new_name)
+        background_tasks.add_task(
+            duplicar_db_odoo, url=url, client=client, new_db_name=new_name
+        )
         odoo_db_creada = True
 
         bot_user = await generar_api_key_bot(
@@ -188,7 +202,7 @@ async def tenants_register(
 
         async with db.transaction():
             logger.info("Iniciando Transaccion en Postgres")
-            await duplicate_schema(db=db, schema_name=new_name)
+            background_tasks.add_task(duplicate_schema, schema_name=new_name)
             plan = datos_registro.payment_plan.lower()
             features = json.dumps(
                 CONFIGURACION_PLANES.get(plan, CONFIGURACION_PLANES["basico"])

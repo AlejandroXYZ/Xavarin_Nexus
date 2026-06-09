@@ -7,6 +7,9 @@ import os
 import dotenv
 import re
 
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+)
 logger = logging.getLogger(__name__)
 dotenv.load_dotenv()
 
@@ -31,6 +34,7 @@ async def actualizar_inventario_odoo(ctx, tenant: str):
     productos_crudos = await cliente_redis.lrange(llave_sala, 0, -1)
 
     if not productos_crudos:
+        logger.info("Lote Vacío")
         return "lote vacio"
 
     await cliente_redis.delete(llave_sala)

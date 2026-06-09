@@ -78,8 +78,13 @@ async def product_embedding(db, product: str, message: str, tenant: str) -> str:
             'product':'<PRODUCTOS ENCONTRADOS>','intent':'ask','text':'<RESPUESTA>'
             """
         respuesta_IA = await groq(
-            prompt_sistema,
-            f"Mensaje del cliente:{message}, encontrado en la DB: {respuesta}",
+            [
+                {"role": "system", "content": prompt_sistema},
+                {
+                    "role": "user",
+                    "content": f"Mensaje del cliente:{message}, encontrado en la DB: {respuesta}",
+                },
+            ]
         )
         logger.info(respuesta)
         return respuesta_IA

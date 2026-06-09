@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, status, Depends, HTTPException
+from fastapi import APIRouter, Request, status, Depends, HTTPException, BackgroundTasks
 from app.security.x_api_key import verificar_api
 import logging
 from app.ia.groq_IA import groq
@@ -6,7 +6,10 @@ from app.schemas.message import IA_answer, Message
 from app.ia.product_embedding import product_embedding
 from app.api.message_utils.cache import save_cache_data
 from app.translators.translator import Translator
+from app.api.message_utils.get_history import obtener_historial_cliente
+from app.api.message_utils.update_context import save_messages_db
 import json
+from datetime import datetime
 
 message_router = APIRouter(prefix="/api/v1/message/{tenant_db}", tags=["message"])
 
@@ -20,7 +23,11 @@ logger = logging.getLogger(__name__)
     dependencies=[Depends(verificar_api)],
 )
 async def message_handler(
-    message: dict, tenant_db: str, request: Request, platform: str
+    message: dict,
+    tenant_db: str,
+    request: Request,
+    platform: str,
+    background_tasks: BackgroundTasks,
 ):
     """Endpoint encargado de toda la lógica de procesamiento del mensaje y respuesta"""
     db = request.app.state.db
@@ -40,46 +47,106 @@ async def message_handler(
     prompt = datos["ai_system_prompt"]
     message = Translator.traducir(plataforma=platform.strip(), payload=message)
 
-    historial = obtener_historial_cliente(user_id=message.platform_user_id, db=db)
-
-    try:
-        if prompt == "" or not prompt:
-            logger.error("No se pudo obtener el system prompt del inquilino")
+    if message.type == "message":
+        llave_historial_cliente = (
+            f"history:client:{platform}:{message.platform_user_id}"
+        )
+        if not await redis.exists(llave_historial_cliente):
+            await obtener_historial_cliente(
+                message=message,
+                db=db,
+                redis=redis,
+                schema_name=tenant_db,
+                redis_key=llave_historial_cliente,
+            )
+        logger.info("Obteniendo datos desde caché")
+        historial_cache = await redis.get(llave_historial_cliente)
+        if not historial_cache:
+            logger.error("Los datos de caché del cliente están vacíos")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Ha ocurrido un error interno",
+                detail="Error interno",
             )
-        response = await groq(prompt, message.content)
-        logger.info(f"respuesta de IA {response}")
-        validacion = IA_answer.model_validate(response)
+        historial = json.loads(historial_cache)
 
-        match validacion.intent:
-            case "buy":
-                return "buying"
+        ia_is_active = True
 
-            case "answered":
-                logger.info(
-                    f"Respondido al Usuario {message.user_name}-ID:{message.platform_user_id} de {message.platform}: {validacion.text}"
-                )
-                return validacion
+        if len(historial) > 0:
+            ia_is_active = historial[0].get("ia_is_active", True)
 
-            case "ask":
-                respuesta = await product_embedding(
-                    db, validacion.product, message.content, tenant_db
-                )
-                return respuesta
-            case "catalog":
-                return {"catalog"}
-            case "another":
-                return "another"
-            case _:
+        if not ia_is_active:
+            logger.info("IA desactivada, mensaje directo al dueño")
+            return  # Mensaje directo a Dueño
+
+        historial_limpio = [
+            {clave: valor for clave, valor in fila.items() if clave != "ia_is_active"}
+            for fila in historial
+        ]
+        historial_limpio = historial_limpio[::-1]
+        historial_limpio.append({"role": "user", "content": message.content})
+        historial_limpio.insert(0, {"role": "system", "content": prompt})
+
+        try:
+            if prompt == "" or not prompt:
+                logger.error("No se pudo obtener el system prompt del inquilino")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Mensaje no válido",
+                    detail="Ha ocurrido un error interno",
                 )
-    except Exception as e:
-        logger.error(f"Error durante el procesamiento del mensaje: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="error procesando el mensaje",
-        )
+
+            logger.info(
+                f"===================={historial_limpio}========================"
+            )
+            response = await groq(historial_limpio)
+            logger.info(f"respuesta de IA {response}")
+            validacion = IA_answer.model_validate(response)
+            response_to_message = Message(
+                platform=message.platform,
+                platform_user_id=message.platform_user_id,
+                user_name=message.user_name,
+                content=f"{{'intent':{validacion.intent},'answer':{validacion.text},'product':{validacion.product} }}",
+                created_at=datetime.now(),
+                type="message",
+                role="assistant",
+                ia_is_active=True,
+                metadata="{}",
+            )
+            logger.info("Guardando conversacion en segundo plano")
+            background_tasks.add_task(
+                save_messages_db,
+                mensajes=[message, response_to_message],
+                db=db,
+                redis=redis,
+                schema_name=tenant_db,
+                key_redis=llave_historial_cliente,
+            )
+
+            match validacion.intent:
+                case "buy":
+                    return "buying"
+
+                case "answered":
+                    respuesta = f"Respondido al Usuario {message.user_name}-ID:{message.platform_user_id} de {message.platform}: {validacion.text}"
+                    logger.info(respuesta)
+                    return {"status": "sucess", "intent": "answered", "data": respuesta}
+
+                case "ask":
+                    respuesta = await product_embedding(
+                        db, validacion.product, message.content, tenant_db
+                    )
+                    return {"status": "sucess", "intent": "ask", "data": respuesta}
+                case "catalog":
+                    return {"catalog"}
+                case "another":
+                    return "another"
+                case _:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Mensaje no válido",
+                    )
+        except Exception as e:
+            logger.error(f"Error durante el procesamiento del mensaje: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="error procesando el mensaje",
+            )

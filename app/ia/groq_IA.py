@@ -10,20 +10,19 @@ api_key = os.getenv("API_KEY_IA", "12121")
 client = AsyncGroq(api_key=api_key)
 
 
-async def groq(prompt: str, message: str) -> dict[str, str | bool | None]:
+async def groq(
+    historial_mensajes: list[dict[str, str]],
+) -> dict[str, str | bool | None]:
     try:
         if not api_key:
             logger.info("No se encuentra la API KEY en las variables de entorno")
             return {"status": False, "mensaje": "No se puede acceder a la IA"}
 
-        rol = [
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": message},
-        ]
+        messages = historial_mensajes
 
         response = await client.chat.completions.create(
             model="llama-3.3-70b-versatile",
-            messages=rol,
+            messages=messages,
             temperature=0,
             response_format={"type": "json_object"},
         )

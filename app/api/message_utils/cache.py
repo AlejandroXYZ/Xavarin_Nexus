@@ -1,5 +1,5 @@
 from app.security.encrypter import desencriptar, preparar_tokens_para_db
-from fastapi import status
+from fastapi import HTTPException, status
 import logging
 import json
 
@@ -14,12 +14,20 @@ async def save_cache_data(tenant: str, db, redis, redis_key: str):
         logger.info("Obteniendo ID del Inquilino")
 
         logger.info("Obteniendo Datos del Inquilino")
-        data = dict(
-            await db.fetchrow(
-                "SELECT id,name,status,ai_system_prompt,features,metadata FROM tenants WHERE schema_name = $1",
-                tenant,
-            )
+        data = await db.fetchrow(
+            """SELECT id,name,status,ai_system_prompt,features,metadata 
+        FROM tenants 
+        WHERE schema_name = $1""",
+            tenant,
         )
+        if data is not None:
+            data = dict(data)
+        else:
+            logger.error("Enlace no válido, DB de inquilino no existe")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Enlace no válido o Expirado",
+            )
 
         tenant_id = data["id"]
         logger.info("Verificando estatus del Inquilino ")

@@ -12,7 +12,7 @@ def telegram_translator(payload: dict):
     username = user.username if user else None
     text_content = msg.text if msg else None
     created_at = msg.date if msg else None
-    type = "text" if msg.text else None
+    type = "message" if msg.text else None
 
     return Message(
         platform="telegram",
@@ -21,4 +21,5 @@ def telegram_translator(payload: dict):
         content=text_content,
         created_at=created_at,
         type=type,
+        role="user",
     )
