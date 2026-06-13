@@ -6,7 +6,12 @@ logger = logging.getLogger(__name__)
 
 
 async def save_messages_db(
-    mensajes: list[Message], db, redis, schema_name: str, key_redis: str
+    mensajes: list[Message],
+    db,
+    redis,
+    schema_name: str,
+    key_redis: str,
+    channel_id: int | None,
 ):
     """Guarda una lista de mensajes entrantes en la tabla messages y actualiza ttl de redis"""
     logger.info(
@@ -40,6 +45,8 @@ async def save_messages_db(
                 }
             )
         historial_lista = historial_lista[-6:]
+        if channel_id:
+            historial_lista.append({"channel_id": channel_id})
         await redis.set(key_redis, json.dumps(historial_lista), ex=86400)
         logger.info(
             f"Caché actualizado exitosamente. Memoria actual: {len(historial_lista)} mensajes."

@@ -14,6 +14,11 @@ def telegram_translator(payload: dict):
     created_at = msg.date if msg else None
     type = "message" if msg.text else None
 
+    if user:
+        username = user.username or user.first_name or "Cliente"
+    else:
+        username = "Cliente"
+
     return Message(
         platform="telegram",
         platform_user_id=user_id,

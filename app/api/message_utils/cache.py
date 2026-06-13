@@ -6,16 +6,14 @@ import json
 logger = logging.getLogger(__name__)
 
 
-async def save_cache_data(tenant: str, db, redis, redis_key: str):
+async def get_cache_data(tenant: str, db, redis, redis_key: str):
     """
-    Guarda en redis los datos de postgres usados para responder mensajes
+    Genera el Caché para que el inquilino y así responder los mensajes rapidamente
     """
     try:
-        logger.info("Obteniendo ID del Inquilino")
-
         logger.info("Obteniendo Datos del Inquilino")
         data = await db.fetchrow(
-            """SELECT id,name,status,ai_system_prompt,features,metadata 
+            """SELECT id,name,status,ai_system_prompt,features,metadata,partner_id 
         FROM tenants 
         WHERE schema_name = $1""",
             tenant,

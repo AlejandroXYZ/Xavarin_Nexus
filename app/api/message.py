@@ -4,12 +4,14 @@ import logging
 from app.ia.groq_IA import groq
 from app.schemas.message import IA_answer, Message
 from app.ia.product_embedding import product_embedding
-from app.api.message_utils.cache import save_cache_data
+from app.api.message_utils.cache import get_cache_data
 from app.translators.translator import Translator
 from app.api.message_utils.get_history import obtener_historial_cliente
 from app.api.message_utils.update_context import save_messages_db
 import json
 from datetime import datetime
+from app.clients.odoo_jsonrpc import ejecutar_odoo
+from app.api.message_utils.register_client import register_client_db
 
 message_router = APIRouter(prefix="/api/v1/message/{tenant_db}", tags=["message"])
 
@@ -32,10 +34,11 @@ async def message_handler(
     """Endpoint encargado de toda la lógica de procesamiento del mensaje y respuesta"""
     db = request.app.state.db
     redis = request.app.state.redis
+    odoo = request.app.state.http_client
     llave = f"cache:{tenant_db}"
     if not await redis.exists(llave):
         logger.info(f"Generando caché con los datos del inquilino {tenant_db}")
-        await save_cache_data(tenant=tenant_db, db=db, redis=redis, redis_key=llave)
+        await get_cache_data(tenant=tenant_db, db=db, redis=redis, redis_key=llave)
     datos = json.loads(await redis.get(llave))
     logger.info(datos)
     if platform not in datos["tokens_platforms"]:
@@ -62,6 +65,7 @@ async def message_handler(
             )
         logger.info("Obteniendo datos desde caché")
         historial_cache = await redis.get(llave_historial_cliente)
+        logger.info(f"historial_cache: {historial_cache}")
         if not historial_cache:
             logger.error("Los datos de caché del cliente están vacíos")
             raise HTTPException(
@@ -69,23 +73,45 @@ async def message_handler(
                 detail="Error interno",
             )
         historial = json.loads(historial_cache)
-
         ia_is_active = True
-
         if len(historial) > 0:
             ia_is_active = historial[0].get("ia_is_active", True)
 
-        if not ia_is_active:
+        if not ia_is_active and historial[-1].get("channel_id", False):
             logger.info("IA desactivada, mensaje directo al dueño")
-            return  # Mensaje directo a Dueño
+            channel_id = historial[-1].get("channel_id", False)
+            await ejecutar_odoo(
+                http_client=odoo,
+                odoo_url=datos["odoo_url"],
+                db=tenant_db,
+                uid=datos["odoo_bot_user"],
+                api_key=datos["odoo_bot_api_key"],
+                modelo="discuss.channel",
+                metodo="message_post",
+                args=[channel_id],
+                kwargs={
+                    "body": message.content,
+                    "message_type": "comment",
+                    "subtype_xmlid": "mail.mt_comment",
+                    "body_is_html": True,
+                },
+            )
 
-        historial_limpio = [
-            {clave: valor for clave, valor in fila.items() if clave != "ia_is_active"}
-            for fila in historial
-        ]
-        historial_limpio = historial_limpio[::-1]
+        logger.info(f"Contenido de historial: {historial}")
+        historial_limpio = []
+        if len(historial) > 0:
+            historial_limpio = [
+                {
+                    clave: valor
+                    for clave, valor in fila.items()
+                    if clave != "ia_is_active"
+                }
+                for fila in [historial[0]]
+            ]
+            historial_limpio = historial_limpio[::-1]
         historial_limpio.append({"role": "user", "content": message.content})
         historial_limpio.insert(0, {"role": "system", "content": prompt})
+        channel_id = None
 
         try:
             if prompt == "" or not prompt:
@@ -112,6 +138,106 @@ async def message_handler(
                 ia_is_active=True,
                 metadata="{}",
             )
+
+            match validacion.intent:
+                case "catalog":
+                    result = "catalog"
+
+                case "answered":
+                    respuesta = f"Respondido al Usuario {message.user_name}-ID:{message.platform_user_id} de {message.platform}: {validacion.text}"
+                    logger.info(respuesta)
+                    result = {
+                        "status": "sucess",
+                        "intent": "answered",
+                        "data": respuesta,
+                    }
+
+                case "ask":
+                    respuesta = await product_embedding(
+                        db, validacion.product, message.content, tenant_db
+                    )
+                    result = {"status": "sucess", "intent": "ask", "data": respuesta}
+
+                case "buy" | "another":
+                    logger.info("Creando Canal de Venta en Odoo")
+                    channel_id = await ejecutar_odoo(
+                        http_client=odoo,
+                        odoo_url=datos["odoo_url"],
+                        db=tenant_db,
+                        uid=datos["odoo_bot_user"],
+                        api_key=datos["odoo_bot_api_key"],
+                        modelo="discuss.channel",
+                        metodo="create",
+                        args=[
+                            {
+                                "name": f"{message.platform}: {message.user_name}{message.platform_user_id}",
+                                "channel_type": "group",
+                                "channel_member_ids": [
+                                    (0, 0, {"partner_id": datos["partner_id"]})
+                                ],
+                            }
+                        ],
+                    )
+
+                    message.ia_is_active = False
+
+                    status_client = (
+                        "waiting_for_support"
+                        if validacion.intent == "another"
+                        else "waiting_for_sale"
+                    )
+                    background_tasks.add_task(
+                        register_client_db,
+                        db=db,
+                        mensaje=message,
+                        schema_name=tenant_db,
+                        status=status_client,
+                        channel_id=channel_id,
+                    )
+
+                    transcripcion_html = "<h3>Resumen de la IA:</h3><hr>"
+                    for msg in historial_limpio:
+                        if msg["role"] == "system":
+                            continue
+                        remitente = "Cliente" if msg["role"] == "user" else "BOT IA"
+                        color = "blue" if remitente == "Cliente" else "green"
+                        transcripcion_html += f"<p><b style='color:{color}'>{remitente}:</b> {msg['content']}</p>"
+
+                    transcripcion_html += f"<hr><p><b style='color: green'> BOT IA:</b> {validacion.text} </p><hr>"
+                    transcripcion_html += (
+                        "<hr><p><i>El cliente requiere atención humana.</i></p>"
+                    )
+
+                    logger.info("Inyectando conversacion")
+                    await ejecutar_odoo(
+                        http_client=odoo,
+                        odoo_url=datos["odoo_url"],
+                        db=tenant_db,
+                        uid=datos["odoo_bot_user"],
+                        api_key=datos["odoo_bot_api_key"],
+                        modelo="discuss.channel",
+                        metodo="message_post",
+                        args=[channel_id],
+                        kwargs={
+                            "body": transcripcion_html,
+                            "message_type": "comment",
+                            "subtype_xmlid": "mail.mt_comment",
+                            "body_is_html": True,
+                        },
+                    )
+                    logger.info("conversacion Inyectada")
+
+                    result = {
+                        "status": "sucess",
+                        "intent": "answered",
+                        "data": "respuesta",
+                    }
+                case _:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Mensaje no válido",
+                    )
+
             logger.info("Guardando conversacion en segundo plano")
             background_tasks.add_task(
                 save_messages_db,
@@ -120,31 +246,10 @@ async def message_handler(
                 redis=redis,
                 schema_name=tenant_db,
                 key_redis=llave_historial_cliente,
+                channel_id=channel_id,
             )
 
-            match validacion.intent:
-                case "buy":
-                    return "buying"
-
-                case "answered":
-                    respuesta = f"Respondido al Usuario {message.user_name}-ID:{message.platform_user_id} de {message.platform}: {validacion.text}"
-                    logger.info(respuesta)
-                    return {"status": "sucess", "intent": "answered", "data": respuesta}
-
-                case "ask":
-                    respuesta = await product_embedding(
-                        db, validacion.product, message.content, tenant_db
-                    )
-                    return {"status": "sucess", "intent": "ask", "data": respuesta}
-                case "catalog":
-                    return {"catalog"}
-                case "another":
-                    return "another"
-                case _:
-                    raise HTTPException(
-                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        detail="Mensaje no válido",
-                    )
+            return result
         except Exception as e:
             logger.error(f"Error durante el procesamiento del mensaje: {e}")
             raise HTTPException(

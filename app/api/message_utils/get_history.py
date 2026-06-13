@@ -23,6 +23,13 @@ async def obtener_historial_cliente(
         message.platform,
     )
 
+    channel_id = await db.fetchval(
+        f"""SELECT channel_id FROM "{schema_name}".clients WHERE platform_user_id = $1 AND platform = $2""",
+        str(message.platform_user_id),
+        message.platform,
+    )
+    logger.info(f"channel_id query: {channel_id}")
+
     if not historial:
         logger.info("NO se encontró historial para este cliente")
         logger.info("Guardando mensaje en caché")
@@ -34,7 +41,9 @@ async def obtener_historial_cliente(
         return False
 
     extraccion_historial = [dict(fila) for fila in historial]
+    resultado_final = {"historial": extraccion_historial, "channel_id": channel_id}
+
     logger.info("Guardando historial del cliente en Caché")
-    await redis.set(redis_key, json.dumps(extraccion_historial, default=str), ex=86400)
+    await redis.set(redis_key, json.dumps(resultado_final, default=str), ex=86400)
     logger.info("Datos guardados perfectamente")
     return True

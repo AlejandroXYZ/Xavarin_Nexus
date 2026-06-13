@@ -185,9 +185,8 @@ async def tenants_register(
         )
         logger.info(f"ID de usuario {usuario_admin} es {uid}")
         logger.info(f"Duplicando plantilla hacia: {new_name}")
-        background_tasks.add_task(
-            duplicar_db_odoo, url=url, client=client, new_db_name=new_name
-        )
+
+        await duplicar_db_odoo(url=url, client=client, new_db_name=new_name)
         odoo_db_creada = True
 
         bot_user = await generar_api_key_bot(
@@ -202,14 +201,21 @@ async def tenants_register(
 
         async with db.transaction():
             logger.info("Iniciando Transaccion en Postgres")
-            background_tasks.add_task(duplicate_schema, schema_name=new_name)
+            await duplicate_schema(schema_name=new_name)
             plan = datos_registro.payment_plan.lower()
             features = json.dumps(
                 CONFIGURACION_PLANES.get(plan, CONFIGURACION_PLANES["basico"])
             )
 
             id_tenant = await registrar_tenant(
-                data=datos_registro, db=db, schema_name=new_name, features=features
+                data=datos_registro,
+                db=db,
+                schema_name=new_name,
+                features=features,
+                odoo=client,
+                odoo_url=url,
+                odoo_bot_user_id=bot_user["bot_uid"],
+                odoo_bot_api_key=bot_user["api_key"],
             )
 
             await guardar_credenciales(
