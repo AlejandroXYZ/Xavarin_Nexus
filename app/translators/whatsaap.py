@@ -1,3 +1,5 @@
+import os
+import httpx
 from app.schemas.translators_schemas.whatsapp import WhatsAppPayload
 from app.schemas.message import Message
 
@@ -34,3 +36,29 @@ def whatsapp_translator(payload: dict) -> Message:
         type=msg_type,
         role="user",
     )
+
+
+async def send_message_whatsapp(destinatario: str, texto: str):
+    """Traduce el texto al payload de WhatsApp y lo envía a través de Meta API."""
+
+    # Extraemos las variables de entorno de Meta
+    token = os.getenv("META_BEARER_TOKEN")
+    phone_id = os.getenv("META_PHONE_ID")
+
+    # URL oficial de la Cloud API de WhatsApp (puedes ajustar la versión v18.0 si usas otra)
+    url = f"https://graph.facebook.com/v18.0/{phone_id}/messages"
+
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+    payload = {
+        "messaging_product": "whatsapp",
+        # WhatsApp exige el número con código de país, pero SIN el símbolo '+'
+        # (ej. 584141234567). Usualmente, 'destinatario' ya viene así desde el webhook de entrada.
+        "to": destinatario.replace("+", ""),
+        "type": "text",
+        "text": {"body": texto},
+    }
+
+    async with httpx.AsyncClient() as client:
+        respuesta = await client.post(url, headers=headers, json=payload)
+        respuesta.raise_for_status()  # Lanza error si Meta rechaza el envío

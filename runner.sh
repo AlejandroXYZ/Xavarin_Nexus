@@ -86,14 +86,15 @@ if not env['res.users.apikeys'].search([('user_id', '=', bot.id)]):
     print(f"FASTAPI_MAGIC_KEY: {key}")
 
 # ==========================================
-# 2. INYECCIÓN O ACTUALIZACIÓN DEL WEBHOOK NATIVO DE ODOO
+# 2. INYECCIÓN O ACTUALIZACIÓN DEL WEBHOOK NATIVO DE ODOO (PRODUCTOS)
 # ==========================================
 model_product = env['ir.model'].search([('model', '=', 'product.template')], limit=1)
 action = env['ir.actions.server'].search([('name', '=', 'Webhook IA FastAPI')], limit=1)
 
-# 1. Definimos siempre la URL correcta para ESTA base de datos
+# Definimos siempre la URL correcta para ESTA base de datos
 base_url = os.getenv("URL_API_BASE_DOCKER", "http://backend:8000")
 secret = os.getenv("FASTAPI_WEBHOOK_SECRET", "super_secreto")
+x_api_key = os.getenv("API_KEY_HEADERS","123344555")
 webhook_url_final = f"{base_url}/api/v1/catalog/{env.cr.dbname}?token={secret}"
 
 campos = ['name', 'description', 'list_price', 'qty_available']
@@ -125,7 +126,51 @@ else:
     })
     print(f"Webhook creado nuevo: {webhook_url_final}")
 
-env.cr.commit()
+# ==========================================
+# 3. WEBHOOK PARA MENSAJES DE CHAT (NATIVO EN RED INTERNA)
+# ==========================================
+model_message = env['ir.model'].search([('model', '=', 'mail.message')], limit=1)
+action_chat = env['ir.actions.server'].search([('name', '=', 'Webhook Salida Chat FastAPI')], limit=1)
+
+# Usamos el token en la URL, es 100% seguro en la red interna de Docker
+base_url = os.getenv("URL_API_BASE_DOCKER", "http://backend:8000")
+secret = os.getenv("FASTAPI_WEBHOOK_SECRET", "super_secreto")
+webhook_chat_url = f"{base_url}/api/v1/message/{env.cr.dbname}/webhook?token={secret}"
+
+campos_chat = ['body', 'res_id', 'model', 'author_id']
+field_chat_ids = env['ir.model.fields'].search([
+    ('model', '=', 'mail.message'),
+    ('name', 'in', campos_chat)
+]).ids
+
+if action_chat:
+    action_chat.write({
+        'state': 'webhook',
+        'webhook_url': webhook_chat_url,
+        'webhook_field_ids': [(6, 0, field_chat_ids)],
+        'code': False # Limpiamos cualquier código residual
+    })
+    print(f"Webhook de Chat actualizado a modalidad nativa: {webhook_chat_url}")
+else:
+    action_chat = env['ir.actions.server'].create({
+        'name': 'Webhook Salida Chat FastAPI',
+        'model_id': model_message.id,
+        'state': 'webhook',
+        'webhook_url': webhook_chat_url,
+        'webhook_field_ids': [(6, 0, field_chat_ids)] 
+    })
+
+    filtro_seguridad = f"[('model', '=', 'discuss.channel'), ('author_id.user_ids', '!=', False), ('author_id', '!=', {bot.id})]"
+
+    env['base.automation'].create({
+        'name': 'Sincronizar Respuestas de Chat de Inquilinos',
+        'model_id': model_message.id,
+        'trigger': 'on_create',
+        'filter_domain': filtro_seguridad, 
+        'action_server_ids': [(4, action_chat.id)]
+    })
+    print("Webhook de Chat creado exitosamente en modalidad nativa.")
+    env.cr.commit()
 EOF
   )
   BOT_OUTPUT=$(echo "$BOT_SCRIPT" | docker-compose run --rm -T odoo odoo shell -d "$DB")

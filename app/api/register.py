@@ -98,7 +98,7 @@ async def guardar_datos_formulario_inquilino(
         url_base = os.getenv("URL_API_BASE", "http://localhost:8000")
         url_admin = f"{url_base}{prefix_url}/form/admin/{llave_datos}"
         logger.info(f"URL de Admin generada: {url_admin}")
-        return {"url": url_admin}
+        return url_admin
 
     except Exception as e:
         raise HTTPException(
@@ -146,7 +146,6 @@ async def tenants_register(
     data: FormAdmin,
     request: Request,
     llave_sesion: str,
-    background_tasks: BackgroundTasks,
     db=Depends(get_db),
 ):
     """

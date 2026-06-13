@@ -28,3 +28,16 @@ class Message(BaseModel):
     role: Roles
     ia_is_active: bool = Field(default=True)
     metadata: Optional[str] = Field(default="{}")
+
+
+class OdooMessageWebhook(BaseModel):
+    odoo_action: Optional[str] = Field(None, alias="_action")
+    odoo_id: Optional[int] = Field(None, alias="_id")
+    odoo_model: Optional[str] = Field(None, alias="_model")
+
+    id: Optional[int] = None
+    body: str
+    model: str
+    res_id: int
+
+    author_id: Any
