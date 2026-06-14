@@ -28,6 +28,7 @@ class Message(BaseModel):
     role: Roles
     ia_is_active: bool = Field(default=True)
     metadata: Optional[str] = Field(default="{}")
+    channel_id: Optional[int] = Field(default=None)
 
 
 class OdooMessageWebhook(BaseModel):

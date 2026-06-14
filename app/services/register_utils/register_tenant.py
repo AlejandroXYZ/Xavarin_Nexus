@@ -1,4 +1,3 @@
-from fastapi import HTTPException, status as status_code
 import logging
 from app.schemas.register import RegisterData
 from datetime import datetime, timedelta
@@ -64,6 +63,4 @@ async def registrar_tenant(
 
     except Exception as e:
         logger.error(f"Error insertando tenant en base de datos: {e}")
-        raise HTTPException(
-            status_code=status_code.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}"
-        )
+        raise e

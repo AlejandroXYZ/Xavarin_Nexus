@@ -1,6 +1,5 @@
 import logging
 import os
-from fastapi import HTTPException, status
 from app.clients.db import init_schema
 
 logger = logging.getLogger(__name__)
@@ -31,9 +30,8 @@ async def duplicar_db_odoo(url: str, client, new_db_name: str) -> bool:
         return True
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+        logger.error(f"Ha ocurrido un error mientras se duplicaba la db de Odoo: {e}")
+        raise e
 
 
 async def duplicate_schema(schema_name: str):
@@ -48,6 +46,4 @@ async def duplicate_schema(schema_name: str):
         logger.error(
             f"Fallo Crítico al crear el esquema en Postgres [{schema_name}]: {e}"
         )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="error interno"
-        )
+        raise e

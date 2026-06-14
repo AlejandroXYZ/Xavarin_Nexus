@@ -1,3 +1,4 @@
+from arq import Retry
 from arq.connections import RedisSettings
 import logging
 import json
@@ -6,6 +7,10 @@ import asyncpg
 import os
 import dotenv
 import re
+import httpx
+from app.schemas.message import Message
+from app.services.message_handler import message_handler_func
+from app.security.errors_catcher import manual_handling
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
@@ -14,6 +19,61 @@ logger = logging.getLogger(__name__)
 dotenv.load_dotenv()
 
 LIMITE_PETICIONES_A_EJECUTAR = 500
+
+tiempos_de_intentos = {1: 60, 2: 300, 3: 600}
+
+
+async def catch_pending_try_messages(
+    ctx,
+    llave: str,
+    platform,
+    tenant_db,
+):
+    """Se ejecuta cada minuto para procesar mensajes tipo pending_try (mensajes no procesados correctamente)"""
+    intentos_actuales = ctx["job_try"]
+    redis = ctx["redis"]
+    logger.info(
+        f"Worker procesando mensaje (Intento #{intentos_actuales}) para {tenant_db}"
+    )
+
+    message_redis = await redis.hget(llave, "message")
+    if not message_redis:
+        logger.error(
+            "No se pudo obtener el mensaje en Redis, posiblemente fue eliminado"
+        )
+        return {"status": "error", "detail": "Mensaje no encontrado en Caché"}
+    message = json.loads(message_redis.decode("utf-8"))
+    message = Message(**message)
+
+    try:
+        await message_handler_func(
+            message=message,
+            tenant_db=tenant_db,
+            platform=platform,
+            db=ctx["db_pool"],
+            redis=redis,
+            odoo=ctx["http_client"],
+            arq=ctx["redis"],
+        )
+        logger.info(f"Reintento exitoso para {tenant_db}")
+    except Exception as e:
+        if intentos_actuales >= 4:
+            logger.critical(
+                f"Limite de Reintentos alcanzados, llevando a intervencion manual: {e}"
+            )
+            await manual_handling(
+                message=message,
+                tenant_db=tenant_db,
+                db=ctx["db_pool"],
+                odoo=ctx["http_client"],
+                redis=redis,
+            )
+
+        segundos_espera = tiempos_de_intentos.get(intentos_actuales, 60)
+        logger.warning(
+            f"Reencolando tarea en Redis. Se reintentará en {segundos_espera} segundos."
+        )
+        raise Retry(defer=segundos_espera)
 
 
 def limpiar_html(texto_bruto: str) -> str:
@@ -93,6 +153,10 @@ async def startup(ctx):
 
     db_url = os.getenv("DATABASE_URL", "postgresql://user:pass@db:5432/mi_db")
     ctx["db_pool"] = await asyncpg.create_pool(db_url, min_size=5, max_size=20)
+    ctx["http_client"] = httpx.AsyncClient(
+        timeout=15.0,
+        limits=httpx.Limits(max_keepalive_connections=50, max_connections=100),
+    )
 
     logger.info("Worker listo y conectado a la base de datos.")
 
@@ -101,6 +165,7 @@ async def shutdown(ctx):
     """Se ejecuta cuando se apaga el worker"""
     logger.info("Apagando Worker y cerrando conexiones de Postgres...")
     await ctx["db_pool"].close()
+    await ctx["http_client"].aclose()
 
 
 class WorkerSettings:
@@ -108,6 +173,6 @@ class WorkerSettings:
 
     on_startup = startup
     on_shutdown = shutdown
-    functions = [actualizar_inventario_odoo]
+    functions = [actualizar_inventario_odoo, catch_pending_try_messages]
     max_jobs = 10
     job_timeout = 60

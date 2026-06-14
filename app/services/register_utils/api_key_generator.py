@@ -1,8 +1,6 @@
 from app.clients.odoo_jsonrpc import ejecutar_odoo
 import logging
 import os
-from fastapi import HTTPException, status
-import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +113,5 @@ action = {{"key": texto_llave}}
         return {"bot_uid": bot_uid, "api_key": api_key_generada}
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error Generando API-KEY para el BOT: {e}",
-        )
+        logger.error(f"Ha ocurrido un error generando la API para el bot: {e}")
+        raise e

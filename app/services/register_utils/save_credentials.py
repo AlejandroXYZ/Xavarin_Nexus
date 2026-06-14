@@ -1,4 +1,3 @@
-from fastapi import HTTPException, status
 from app.security.encrypter import encriptar, preparar_tokens_para_db
 import logging
 
@@ -18,7 +17,9 @@ async def guardar_credenciales(
         logger.info("Guardando credenciales")
         odoo_url = encriptar(odoo_url)
         odoo_bot_api_key = encriptar(odoo_bot_api_key)
-        tokens_platforms = preparar_tokens_para_db(tokens_platforms, accion="encriptar")
+        tokens_platforms = preparar_tokens_para_db(
+            tokens=tokens_platforms, accion="encriptar"
+        )
 
         await db.execute(
             """
@@ -43,7 +44,4 @@ async def guardar_credenciales(
 
     except Exception as e:
         logger.exception("Fallo crítico en la inserción de credenciales")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al guardar credenciales: {e}",
-        )
+        raise e
