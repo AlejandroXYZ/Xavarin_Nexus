@@ -121,6 +121,7 @@ async def init_schema(
             status TEXT NOT NULL DEFAULT 'served' CHECK (status IN ('served','waiting_for_sale','waiting_for_support')),
             channel_id INT,
             metadata JSONB DEFAULT '{{}}'::jsonb,
+            partner_id INT NOT NULL,
             CONSTRAINT unique_plataforma_cliente UNIQUE (platform, platform_user_id)
             );
 

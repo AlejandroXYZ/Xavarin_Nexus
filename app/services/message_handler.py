@@ -11,14 +11,15 @@ from datetime import datetime
 from app.clients.odoo_jsonrpc import ejecutar_odoo
 from app.services.message_utils.register_client import register_client_db
 from app.services.message_utils.cache_client import get_cache_client
-from app.services.message_utils.html_format import format_html
+from app.services.message_utils.html_format import format_html, limpiar_html
 from app.security.errors_catcher import manual_handling, message_pending_try
+from app.services.message_utils.commands.facturar import procesar_factura
 
 logger = logging.getLogger(__name__)
 
 
 async def response_to_client_handler(
-    tenant_db: str, payload: OdooMessageWebhook, redis, db
+    tenant_db: str, payload: OdooMessageWebhook, redis, db, odoo
 ):
     """Recibe mensaje de Odoo, lo procesa y responde al cliente"""
 
@@ -67,6 +68,23 @@ async def response_to_client_handler(
         raise ValueError("No se pudo obtener los datos del cliente")
     elif "Resumen de la IA:" in payload.body or "BOT IA:" in payload.body:
         return {"status": "ignored", "reason": "Eco del bot bloqueado"}
+
+    payload.body = limpiar_html(payload.body)
+    if payload.body.startswith("/"):
+        if payload.body == "/facturar":
+            logger.info("Procesando Lógica de Venta y Factura")
+            factura = await procesar_factura(
+                db=db,
+                tenant_db=tenant_db,
+                tenant_cache_data=datos,
+                http_client=odoo,
+                platform_user_id=client["platform_user_id"],
+                platform=client["platform"],
+            )
+            logger.info(f"Ejecutado con éxito: {factura}")
+            return
+        logger.info(f"Comando no válido: {payload.body}")
+        return {"status": "error", "info": "comando no válido"}
 
     try:
         logger.info(f"Mensaje: {payload.body}")
@@ -164,6 +182,7 @@ async def message_handler_func(
         historial_limpio.append({"role": "user", "content": message.content})
         historial_limpio.insert(0, {"role": "system", "content": prompt})
         channel_id = None
+        respuesta_para_cliente = None
 
         try:
             if prompt == "" or not prompt:
@@ -180,9 +199,15 @@ async def message_handler_func(
             logger.info(f"respuesta de IA {response}")
             validacion = IA_answer.model_validate(response)
             ia_is_now_active = True
+            respuesta_para_cliente = validacion.text
+
             match validacion.intent:
                 case "catalog":
-                    result = "catalog"
+                    result = {
+                        "status": "success",
+                        "intent": "catalog",
+                        "data": "Catálogo solicitado",
+                    }
 
                 case "answered":
                     respuesta = f"Respondido al Usuario {message.user_name}-ID:{message.platform_user_id} de {message.platform}: {validacion.text}"
@@ -192,13 +217,33 @@ async def message_handler_func(
                         "intent": "answered",
                         "data": respuesta,
                     }
+                    respuesta_para_cliente = validacion.text
 
                 case "ask":
-                    respuesta = await product_embedding(
+                    respuesta_cruda = await product_embedding(
                         db, validacion.product, message.content, tenant_db
                     )
-                    result = {"status": "sucess", "intent": "ask", "data": respuesta}
 
+                    if isinstance(respuesta_cruda, dict):
+                        texto_extraido = respuesta_cruda.get(
+                            "text", str(respuesta_cruda)
+                        )
+                    elif isinstance(respuesta_cruda, str):
+                        try:
+                            texto_extraido = json.loads(respuesta_cruda).get(
+                                "text", respuesta_cruda
+                            )
+                        except json.JSONDecodeError:
+                            texto_extraido = respuesta_cruda
+                    else:
+                        texto_extraido = str(respuesta_cruda)
+
+                    result = {
+                        "status": "success",
+                        "intent": "ask",
+                        "data": texto_extraido,
+                    }
+                    respuesta_para_cliente = texto_extraido
                 case "buy" | "another":
                     channel_id = historial[-1].get("channel_id") if historial else None
                     if not channel_id:
@@ -226,7 +271,7 @@ async def message_handler_func(
                         logger.info(f"Reutilizando canal existente: {channel_id}")
 
                     ia_is_now_active = False
-                    message.ia_is_active = ia_is_active
+                    message.ia_is_active = ia_is_now_active
 
                     status_client = (
                         "waiting_for_support"
@@ -239,6 +284,8 @@ async def message_handler_func(
                         schema_name=tenant_db,
                         status=status_client,
                         channel_id=channel_id,
+                        tenant_cache_data=datos,
+                        http_client=odoo,
                     )
 
                     transcripcion_html = format_html(historial_limpio)
@@ -264,9 +311,12 @@ async def message_handler_func(
 
                     result = {
                         "status": "sucess",
-                        "intent": "answered",
-                        "data": "respuesta",
+                        "intent": validacion.intent,
+                        "data": "Mensaje enviado al dueño",
                     }
+
+                    respuesta_para_cliente = validacion.text
+
                 case _:
                     logger.error(
                         f"Mensaje no Válido, error extrayendo intent, mensaje: {message}, intent: {validacion} "
@@ -274,20 +324,33 @@ async def message_handler_func(
                     return {"status": "Error"}
 
             logger.info("Guardando conversacion en segundo plano")
-            response_to_message = Message(
-                platform=message.platform,
-                platform_user_id=message.platform_user_id,
-                user_name=message.user_name,
-                content=validacion.model_dump_json(),
-                created_at=datetime.now(),
-                type="message",
-                role="assistant",
-                ia_is_active=ia_is_now_active,
-                metadata="{}",
-            )
+            mensajes_a_guardar = [message]
+
+            if respuesta_para_cliente:
+                memoria_ia_json = json.dumps(
+                    {
+                        "intent": validacion.intent,
+                        "product": validacion.product,
+                        "text": respuesta_para_cliente,
+                    },
+                    ensure_ascii=False,
+                )
+
+                response_to_message = Message(
+                    platform=message.platform,
+                    platform_user_id=message.platform_user_id,
+                    user_name=message.user_name,
+                    content=memoria_ia_json,
+                    created_at=datetime.now(),
+                    type="message",
+                    role="assistant",
+                    ia_is_active=ia_is_now_active,
+                    metadata="{}",
+                )
+                mensajes_a_guardar.append(response_to_message)
 
             await save_messages_db(
-                mensajes=[message, response_to_message],
+                mensajes=mensajes_a_guardar,
                 db=db,
                 redis=redis,
                 schema_name=tenant_db,
@@ -296,6 +359,7 @@ async def message_handler_func(
             )
 
             return result
+
         except Exception as e:
             logger.error(f"Error durante el procesamiento del mensaje: {e}")
             await message_pending_try(

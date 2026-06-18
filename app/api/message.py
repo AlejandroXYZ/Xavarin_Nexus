@@ -35,6 +35,7 @@ async def response_to_client(
     """Recibe Mensaje de Odoo, lo procesa y responde al cliente"""
     redis = request.app.state.redis
     db = request.app.state.db
+    odoo = request.app.state.http_client
     true_token = os.getenv("FASTAPI_WEBHOOK_SECRET", "1234")
     if token != true_token:
         logger.error("Token no válido")
@@ -47,6 +48,7 @@ async def response_to_client(
         payload=payload,
         redis=redis,
         db=db,
+        odoo=odoo,
     )
     return {"status": "sucess", "status_code": "202_ACCEPTED"}
 

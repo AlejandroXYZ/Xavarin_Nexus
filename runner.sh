@@ -73,18 +73,29 @@ if not bot:
         'login': 'bot@bot.com',
         'email': 'bot@bot.com'
     })
-    
-    grupos = [env.ref('base.group_user').id, env.ref('base.group_system').id]
-    for gid in grupos:
-        env.cr.execute("SELECT 1 FROM res_groups_users_rel WHERE uid=%s AND gid=%s", (bot.id, gid))
-        if not env.cr.fetchone():
-            env.cr.execute("INSERT INTO res_groups_users_rel (uid, gid) VALUES (%s, %s)", (bot.id, gid))
+
+# --- EL FIX DE LOS PERMISOS (MULTIVERSIÓN) ---
+xml_ids_permisos = [
+    'base.group_user',                 
+    'base.group_system',               
+    'sales_team.group_sale_manager',   
+    'account.group_account_manager'    
+]
+
+# Introspección: Averiguamos el nombre correcto del campo según la versión de Odoo
+campo_grupos = 'group_ids' if 'group_ids' in bot._fields else 'groups_id'
+
+for xml_id in xml_ids_permisos:
+    grupo = env.ref(xml_id, raise_if_not_found=False)
+    if grupo:
+        # Usamos la variable dinámica que descubrió el nombre correcto
+        bot.write({campo_grupos: [(4, grupo.id)]})
+# ----------------------------------------------
 
 if not env['res.users.apikeys'].search([('user_id', '=', bot.id)]):
     fecha_objeto = datetime.datetime.now() + datetime.timedelta(days=90)
     key = env['res.users.apikeys']._generate('fastapi_integration', bot.id, fecha_objeto)
     print(f"FASTAPI_MAGIC_KEY: {key}")
-
 # ==========================================
 # 2. INYECCIÓN O ACTUALIZACIÓN DEL WEBHOOK NATIVO DE ODOO (PRODUCTOS)
 # ==========================================
@@ -178,7 +189,7 @@ EOF
 
   if [ ! -z "$BOT_KEY" ]; then
     sed -i '/^ODOO_BOT_API_KEY=/d' .env
-
+    echo "" >>.env
     echo "ODOO_BOT_API_KEY=$BOT_KEY" >>.env
     echo "Bot creado con éxito. API Key inyectada en el archivo .env automáticamente."
   else
