@@ -125,6 +125,8 @@ async def message_handler_func(
 
     prompt = datos["ai_system_prompt"]
     message = Translator.traducir(plataforma=platform.strip(), payload=message)
+    if message is None:
+        return {"status": "ignored", "info": "Evento de sistema o estado"}
 
     if message.type == "message":
         llave_historial_cliente = (
@@ -184,23 +186,44 @@ async def message_handler_func(
         channel_id = None
         respuesta_para_cliente = None
 
-        try:
-            if prompt == "" or not prompt:
-                logger.error("No se pudo obtener el system prompt del inquilino")
-                await manual_handling(
-                    message=message, tenant_db=tenant_db, redis=redis, db=db, odoo=odoo
-                )
-                return {"status": "pending", "info": "Mensaje enviado al dueño"}
-
-            logger.info(
-                f"===================={historial_limpio}========================"
+        if message.content == "multimedia":
+            logger.info("Mensaje Multimedia enviando al dueño")
+            validacion = IA_answer(
+                intent="another",
+                product="",
+                text="Mensaje Multimedia",
             )
-            response = await groq(historial_limpio)
-            logger.info(f"respuesta de IA {response}")
-            validacion = IA_answer.model_validate(response)
+        else:
+            try:
+                if prompt == "" or not prompt:
+                    logger.error("No se pudo obtener el system prompt del inquilino")
+                    await manual_handling(
+                        message=message,
+                        tenant_db=tenant_db,
+                        redis=redis,
+                        db=db,
+                        odoo=odoo,
+                    )
+                    return {"status": "pending", "info": "Mensaje enviado al dueño"}
+
+                logger.info(
+                    f"===================={historial_limpio}========================"
+                )
+
+                response = await groq(historial_limpio)
+                logger.info(f"respuesta de IA {response}")
+                validacion = IA_answer.model_validate(response)
+            except Exception as e:
+                logger.error(
+                    f"Ha ocurrido un error mientras se enviaba el mensaje a la IA: {e}"
+                )
+                return {
+                    "status": "error",
+                    "info": "Error al procesar el mensaje con la IA",
+                }
             ia_is_now_active = True
             respuesta_para_cliente = validacion.text
-
+        try:
             match validacion.intent:
                 case "catalog":
                     result = {

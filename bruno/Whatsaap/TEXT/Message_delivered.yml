@@ -1,0 +1,50 @@
+info:
+  name: Message_delivered
+  type: http
+  seq: 7
+
+http:
+  method: POST
+  url: http://localhost:8000/api/v1/message/pepe-83f19/whatsapp
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: X-API-KEY
+      value: AlKsDjFhGm10B6V9xz03msYQ18BXz&94XmncHj4299810836183930NJCGmcis
+  body:
+    type: json
+    data: |+
+      {
+        "object": "whatsapp_business_account",
+        "entry": [
+          {
+            "id": "102290129340398",
+            "changes": [
+              {
+                "field": "messages",
+                "value": {
+                  "messaging_product": "whatsapp",
+                  "metadata": {
+                    "display_phone_number": "15550783881",
+                    "phone_number_id": "106540352242922"
+                  },
+                  "statuses": [
+                    {
+                      "id": "wamid.HBgLNTcxMjM0NTY3ODkWAgARGBI0NTY3OEE5MTcwOTlBRUUzRkE=",
+                      "status": "delivered",
+                      "timestamp": "1718745500",
+                      "recipient_id": "57312345678"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

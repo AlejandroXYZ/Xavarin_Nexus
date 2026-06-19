@@ -1,0 +1,7 @@
+info:
+  name: IMAGE
+  type: folder
+  seq: 3
+
+request:
+  auth: inherit

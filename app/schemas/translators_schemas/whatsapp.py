@@ -25,10 +25,21 @@ class WhatsAppMessageDetail(BaseModel):
     text: Optional[WhatsAppText] = None
 
 
+# ==========================================
+# NUEVO MODELO: Para manejar los acuses de recibo
+# ==========================================
+class WhatsAppStatus(BaseModel):
+    id: str
+    status: str  # Aquí vendrá "sent", "delivered" o "read"
+    timestamp: str
+    recipient_id: str
+
+
 class WhatsAppValue(BaseModel):
     messaging_product: str
     contacts: Optional[List[WhatsAppContact]] = None
     messages: Optional[List[WhatsAppMessageDetail]] = None
+    statuses: Optional[List[WhatsAppStatus]] = None  # <--- EL CAMPO FALTANTE AÑADIDO
 
 
 class WhatsAppChange(BaseModel):

@@ -2,30 +2,48 @@ import os
 import httpx
 from app.schemas.translators_schemas.whatsapp import WhatsAppPayload
 from app.schemas.message import Message
+from typing import Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 
-def whatsapp_translator(payload: dict) -> Message:
+def whatsapp_translator(payload: dict) -> Optional[Message]:
     """Carga el Payload de WhatsApp Cloud API al JSON BASE"""
 
     whatsapp_data = WhatsAppPayload(**payload)
 
     if not whatsapp_data.entry or not whatsapp_data.entry[0].changes:
-        raise ValueError("Payload de WhatsApp incompleto o inválido")
+        logger.warning("Payload de WhatsApp con estructura desconocida.")
+        return None
 
     value = whatsapp_data.entry[0].changes[0].value
-
     messages = value.messages
+    if not messages:
+        statuses = value.statuses
+        if statuses:
+            estado = statuses[0].status
+            logger.info(
+                f"Aviso de Meta recibido: Mensaje {estado}. Ignorando silenciosamente."
+            )
+        return None  # Salida elegante
+
     contacts = value.contacts
 
-    msg = messages[0] if messages else None
+    msg = messages[0]
     contact = contacts[0] if contacts else None
 
-    user_id = msg.from_user if msg else None
-    username = contact.profile.name if contact and contact.profile else None
-    text_content = msg.text.body if msg and msg.text else None
+    user_id = msg.from_user
+    username = contact.profile.name if contact and contact.profile else "Usuario"
 
-    created_at = int(msg.timestamp) if msg and msg.timestamp else None
-    msg_type = "message" if text_content else None
+    tipo_mensaje = getattr(msg, "type", "text")
+
+    if tipo_mensaje == "text" and getattr(msg, "text", None):
+        text_content = msg.text.body
+    else:
+        text_content = "multimedia"
+
+    created_at = int(msg.timestamp) if msg.timestamp else None
 
     return Message(
         platform="whatsapp",
@@ -33,7 +51,7 @@ def whatsapp_translator(payload: dict) -> Message:
         user_name=username,
         content=text_content,
         created_at=created_at,
-        type=msg_type,
+        type="message",
         role="user",
     )
 
