@@ -1,8 +1,3 @@
-from fastapi import (
-    status,
-    HTTPException,
-)
-
 from app.schemas.register import Form, FormAdmin, RegisterData
 import logging
 from app.services.register_utils.duplicate import duplicar_db_odoo, duplicate_schema
@@ -43,10 +38,7 @@ async def save_form_data(redis, llave_sesion: str, data: Form, prefix_url: str):
 
     if not await redis.exists(llave_sesion):
         logger.warning("Intento Fraudulento o Token Expirado")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Enlace inválido o ha expirado",
-        )
+        raise ValueError("Token Inválido")
     try:
         logger.info("Guardando datos en Redis")
         nombre = data.name.replace(" ", "").strip()
@@ -65,19 +57,14 @@ async def save_form_data(redis, llave_sesion: str, data: Form, prefix_url: str):
         return url_admin
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}"
-        )
+        raise ValueError(f"Error al generar el Enlace para el formulario del admin {e}")
 
 
 async def create_tenant(redis, db, llave_sesion: str, data: FormAdmin, client):
     """Registra y activa al nuevo inquilino"""
     if not await redis.exists(llave_sesion):
         logger.error("Intento de acceso con token expirado o invalido")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error Enlace Expirado",
-        )
+        raise ValueError("Error, enlace expirado")
     datos_recopilados_admin = json.loads(await redis.get(llave_sesion))
     datos_recopilados_inquilino = data.model_dump()
     datos_completos = datos_recopilados_inquilino | datos_recopilados_admin
@@ -182,7 +169,6 @@ async def create_tenant(redis, db, llave_sesion: str, data: FormAdmin, client):
                     f"Falló el borrado manual en Odoo de {new_name}. Error: {e_rollback}"
                 )
 
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error interno al crear el espacio de trabajo. Se han deshecho los cambios, error: {e}",
+        raise ValueError(
+            f"Error interno al crear el espacio de trabajo. Se han deshecho los cambios, error: {e}"
         )

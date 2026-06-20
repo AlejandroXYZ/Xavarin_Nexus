@@ -23,6 +23,8 @@ services:
       - main-network
     volumes:
       - db_volume:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
 
   odoo:
     image: odoo:19

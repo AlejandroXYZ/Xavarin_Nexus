@@ -1,4 +1,3 @@
-import re
 from fastapi import (
     APIRouter,
     status,
@@ -27,12 +26,23 @@ password_admin = os.getenv("ODOO_PASSWORD_ADMIN_BASE", "odoo")
 register_router = APIRouter(prefix=prefix_url, tags=["register"])
 
 
-@register_router.post("/form/url_generate")
+@register_router.post("/form/url_generate", status_code=status.HTTP_201_CREATED)
 async def generar_enlace_inquilino(request: Request, name: str) -> str:
     """Genera la URL Única de formulario para que el inquilino llene sus datos"""
-    redis = request.app.state.redis
-    enlace = await generate_tenant_link(redis=redis, name=name, prefix_url=prefix_url)
-    return enlace
+    try:
+        redis = request.app.state.redis
+        enlace = await generate_tenant_link(
+            redis=redis, name=name, prefix_url=prefix_url
+        )
+        return enlace
+    except Exception as e:
+        logger.error(
+            f"Ha ocurrido un error generando el enlace para el formulario del inquilino: {e}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error Interno generando el Enlace",
+        )
 
 
 @register_router.get("/form/public/{llave_sesion}", status_code=status.HTTP_200_OK)
