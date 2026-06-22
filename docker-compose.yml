@@ -9,16 +9,12 @@ services:
     env_file:
       - .env
     command: "uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
-    networks:
-      - main-network
 
   db:
     image: pgvector/pgvector:pg17
     restart: always
     env_file:
       - .env
-    networks:
-      - main-network
     volumes:
       - db_volume:/var/lib/postgresql/data
 
@@ -31,28 +27,20 @@ services:
       - .env
 
     command: odoo --db-filter="^%d$$"
-    networks:
-      - main-network
 
   adminer:
     image: adminer
     restart: always
-    networks:
-      - main-network
 
   redis:
     image: redis:8.6.3
     command: redis-server --appendonly yes
     volumes:
       - redis-volume:/data
-    networks:
-      - main-network
 
   worker:
     build: .
     container_name: "worker"
-    networks:
-      - main-network
     depends_on:
       - redis
       - db
@@ -60,9 +48,6 @@ services:
     command: arq worker.WorkerSettings
     env_file:
       - .env
-
-networks:
-  main-network:
 
 volumes:
   db_volume:
