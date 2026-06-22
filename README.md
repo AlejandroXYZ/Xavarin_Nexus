@@ -172,8 +172,6 @@ Para ejecutar las pruebas:
 
 
 # Variables de Entorno
->>>>>>> 4d3d819 (FIX: Modificada lógica de factura que no descontaba el producto del inventario)
-Crea un archivo `.env` en la raíz del proyecto. El sistema requiere aproximadamente 30 variables operativas. Aquí se muestran las más críticas:
 
 ```env
 
