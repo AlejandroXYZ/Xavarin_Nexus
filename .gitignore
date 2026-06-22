@@ -2,3 +2,4 @@
 venv/
 .venv/
 diagram/
+docker-compose.override.yml
