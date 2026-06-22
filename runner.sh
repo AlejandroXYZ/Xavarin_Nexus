@@ -53,7 +53,7 @@ else
   docker compose run --rm odoo odoo -d "$DB" -i base,sale,stock,mail,base_automation --load-language=es_VE --stop-after-init
 
   echo "Cambiando la contraseña del usuario administrador interno..."
-  echo "env.ref('base.user_admin').write({'password': '${ODOO_PASSWORD_ADMIN_BASE}'}); env.cr.commit()" | docker-compose run --rm -T odoo odoo shell -d "$DB"
+  echo "env.ref('base.user_admin').write({'password': '${ODOO_PASSWORD_ADMIN_BASE}'}); env.cr.commit()" | docker compose run --rm -T odoo odoo shell -d "$DB"
 
   echo "Creando Usuario Bot y generando API Key"
 
@@ -200,7 +200,7 @@ fi
 echo "Levantando el resto de los servicios de la aplicación..."
 
 if [ "$ENTORNO" == "produccion" ]; then
-  docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+  docker compose -f docker compose.yml -f docker-compose.prod.yml up -d
 
 elif [ "$ENTORNO" == "desarrollo" ]; then
   docker compose up -d
