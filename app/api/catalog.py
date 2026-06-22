@@ -10,18 +10,12 @@ logger = logging.getLogger(__name__)
 
 @catalog_router.post("/{tenant}", status_code=status.HTTP_202_ACCEPTED)
 async def actualizar_inventario(
-    payload: ProductoOdoo,
+    payload: ProductoOdoo | list[ProductoOdoo],
     tenant: str,
     token: str,
     request: Request,
 ):
     """Recibe peticiones POST de Odoo para actualizar el inventario"""
-
-    llave_redis = f"sala_espera_vectores:{tenant}"
-    redis = request.app.state.redis
-    await redis.rpush(llave_redis, payload.model_dump_json())
-    ventana_tiempo = int(time.time() // 10)
-    job_id = f"lote_{tenant}_{ventana_tiempo}"
 
     token_real = os.getenv("FASTAPI_WEBHOOK_SECRET", "token123")
     if token_real != token:
@@ -29,6 +23,20 @@ async def actualizar_inventario(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Credenciales de autenticacion no fueron proporcionadas",
         )
+    llave_redis = f"sala_espera_vectores:{tenant}"
+    redis = request.app.state.redis
+    await redis.rpush(llave_redis, payload.model_dump_json())
+    ventana_tiempo = int(time.time() // 10)
+    job_id = f"lote_{tenant}_{ventana_tiempo}"
+
+    if not isinstance(payload, list):
+        payload = [payload]
+
+    pipeline = redis.pipeline()
+    for producto in payload:
+        pipeline.rpush(llave_redis, producto.model_dump_json())
+    await pipeline.execute()
+
     try:
         await request.app.state.arq_pool.enqueue_job(
             "actualizar_inventario_odoo",

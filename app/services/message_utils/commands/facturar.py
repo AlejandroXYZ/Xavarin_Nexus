@@ -2,9 +2,9 @@ import logging
 from app.ia.groq_IA import groq
 from app.services.message_utils.commands.prompt_factura import prompt
 from app.clients.odoo_jsonrpc import ejecutar_odoo
-import base64
 import uuid
 import os
+from typing import List, Dict
 
 
 logger = logging.getLogger(__name__)
@@ -55,13 +55,31 @@ async def procesar_factura(
             tenant_db=tenant_db,
             partner_id=partner_id,
         )
+        if facturacion and "error" not in str(facturacion).lower():
+            logger.info(
+                "Venta exitosa en Odoo. Descontando stock en base de datos local..."
+            )
+
+            valores_actualizacion = [
+                (item["cantidad"], item["id_odoo"]) for item in productos_encontrados
+            ]
+
+            query_descuento = f"""
+                UPDATE "{tenant_db}".catalog 
+                SET stock = GREATEST(stock - $1, 0)
+                WHERE id_odoo = $2;
+            """
+
+            await db.executemany(query_descuento, valores_actualizacion)
+            logger.info("Stock local actualizado correctamente.")
+
         return facturacion
     except Exception as e:
         logger.error(f"Ha ocurrido un error procesando el comando facturar, {e}")
         return {"status": "error", "info": "error procesando el comando /facturar"}
 
 
-async def buscar_productos(db, productos: str | list, tenant_db: str):
+async def buscar_productos(db, productos: str | list, tenant_db: str) -> list:
     """Busca productos en la tabla catalog"""
     try:
         # convierte texto a este formato: "%Camisa%"
@@ -107,312 +125,209 @@ async def buscar_productos(db, productos: str | list, tenant_db: str):
         }
 
 
+def _obtener_ejecutor_odoo(tenant_data: dict, tenant_db: str, http_client):
+    """Crea un acceso directo dinámico para evitar repetir las credenciales de Odoo."""
+
+    async def runner(modelo: str, metodo: str, args: list = None, kwargs: dict = None):
+        res = await ejecutar_odoo(
+            http_client=http_client,
+            odoo_url=tenant_data["odoo_url"],
+            db=tenant_db,
+            uid=tenant_data["odoo_bot_user"],
+            api_key=tenant_data["odoo_bot_api_key"],
+            modelo=modelo,
+            metodo=metodo,
+            args=args or [],
+            kwargs=kwargs or {},
+        )
+        return (
+            res[0]
+            if isinstance(res, list) and len(res) == 1 and metodo in ("create", "write")
+            else res
+        )
+
+    return runner
+
+
+async def _crear_y_confirmar_pedido(
+    run_odoo, partner_id: int, productos: List[dict]
+) -> int:
+    """Formatea las líneas, crea el Sale Order y lo confirma."""
+    lineas_pedido = [
+        (0, 0, {"product_id": p["id_odoo"], "product_uom_qty": p["cantidad"]})
+        for p in productos
+    ]
+
+    logger.info("Creando Pedido de Venta en Odoo...")
+    sale_order_id = await run_odoo(
+        "sale.order",
+        "create",
+        [{"partner_id": partner_id, "order_line": lineas_pedido}],
+    )
+    if isinstance(sale_order_id, list):
+        sale_order_id = sale_order_id[0]
+
+    logger.info(f"Confirmando Pedido {sale_order_id} para reservar stock...")
+    await run_odoo("sale.order", "action_confirm", [[sale_order_id]])
+    return sale_order_id
+
+
+async def _validar_entrega_silenciosa(run_odoo, sale_order_id: int):
+    """Procesa las órdenes de entrega de stock"""
+    logger.info("Buscando órdenes de entrega asociadas al pedido...")
+    pedido_data = await run_odoo(
+        "sale.order", "read", [[sale_order_id]], {"fields": ["picking_ids"]}
+    )
+    picking_ids = pedido_data[0].get("picking_ids", []) if pedido_data else []
+
+    for picking_id in picking_ids:
+        logger.info(f"Validando entrega {picking_id} en modo silencioso...")
+        res = await run_odoo(
+            "stock.picking",
+            "button_validate",
+            [[picking_id]],
+            {"context": {"skip_sms": True}},
+        )
+
+        if isinstance(res, dict) and res.get("res_model") == "stock.immediate.transfer":
+            logger.info(
+                "Forzando transferencia inmediata para descontar todo el stock..."
+            )
+            ctx = res.get("context", {})
+            ctx["skip_sms"] = True
+
+            wizard_id = await run_odoo(
+                "stock.immediate.transfer",
+                "create",
+                [{"pick_ids": [[4, picking_id]]}],
+                {"context": ctx},
+            )
+            if isinstance(wizard_id, list):
+                wizard_id = wizard_id[0]
+
+            await run_odoo(
+                "stock.immediate.transfer", "process", [[wizard_id]], {"context": ctx}
+            )
+
+
+async def _generar_y_publicar_factura(run_odoo, sale_order_id: int) -> int:
+    """Paso 4, 5 y 6: Dispara el asistente de facturación y publica la factura."""
+    logger.info("Abriendo asistente de facturación en Odoo...")
+    wizard_id = await run_odoo(
+        "sale.advance.payment.inv",
+        "create",
+        [{"advance_payment_method": "delivered"}],
+        {
+            "context": {
+                "active_model": "sale.order",
+                "active_ids": [sale_order_id],
+                "active_id": sale_order_id,
+            }
+        },
+    )
+    if isinstance(wizard_id, list):
+        wizard_id = wizard_id[0]
+
+    logger.info("Generando Factura a partir del asistente...")
+    await run_odoo("sale.advance.payment.inv", "create_invoices", [[wizard_id]])
+
+    pedido_data = await run_odoo(
+        "sale.order", "read", [[sale_order_id]], {"fields": ["invoice_ids"]}
+    )
+    return (
+        pedido_data[0]["invoice_ids"][0]
+        if pedido_data and pedido_data[0].get("invoice_ids")
+        else None
+    )
+
+
+async def _registrar_pago_factura(run_odoo, factura_id: int):
+    """Paso 7: Valida la factura contablemente y registra su pago completo."""
+    await run_odoo("account.move", "action_post", [[factura_id]])
+    logger.info(f"Factura {factura_id} publicada con éxito. Conciliando pago...")
+
+    register_id = await run_odoo(
+        "account.payment.register",
+        "create",
+        [{}],
+        {
+            "context": {
+                "active_model": "account.move",
+                "active_ids": [factura_id],
+                "active_id": factura_id,
+            }
+        },
+    )
+    if isinstance(register_id, list):
+        register_id = register_id[0]
+
+    await run_odoo(
+        "account.payment.register", "action_create_payments", [[register_id]]
+    )
+    logger.info(f"Factura {factura_id} marcada exitosamente como PAGADA.")
+
+
+async def _garantizar_enlace_publico(run_odoo, factura_id: int, tenant_db: str) -> str:
+    """Paso 8: Asegura el token de acceso público y formatea la URL final del portal."""
+    factura_data = await run_odoo(
+        "account.move", "read", [[factura_id]], {"fields": ["access_token"]}
+    )
+    token = factura_data[0].get("access_token") if factura_data else None
+
+    if not token:
+        logger.info("Inyectando token seguro...")
+        token = str(uuid.uuid4())
+        await run_odoo("account.move", "write", [[factura_id], {"access_token": token}])
+
+    public_base_url = os.getenv(
+        "ODOO_URL_PUBLIC", f"http://{tenant_db}.127.0.0.1.nip.io:8069"
+    )
+    return (
+        f"{public_base_url.rstrip('/')}/my/invoices/{factura_id}?access_token={token}"
+    )
+
+
 async def procesar_venta_completa(
     tenant_data: dict,
     productos_a_comprar: list,
     http_client,
     tenant_db: str,
     partner_id: int,
-):
+) -> Dict[str, Any]:
     """
     Crea el pedido, confirma entrega (descuenta inventario físico en modo silencioso),
     genera factura, registra el pago y genera la URL pública del portal.
     """
     try:
-        # 1. Formatear las líneas del pedido
-        lineas_pedido = []
-        for item in productos_a_comprar:
-            lineas_pedido.append(
-                (
-                    0,
-                    0,
-                    {
-                        "product_id": item["id_odoo"],
-                        "product_uom_qty": item["cantidad"],
-                    },
-                )
-            )
+        run_odoo = _obtener_ejecutor_odoo(tenant_data, tenant_db, http_client)
 
-        logger.info("Creando Pedido de Venta en Odoo...")
-        sale_order_id = await ejecutar_odoo(
-            http_client=http_client,
-            odoo_url=tenant_data["odoo_url"],
-            db=tenant_db,
-            uid=tenant_data["odoo_bot_user"],
-            api_key=tenant_data["odoo_bot_api_key"],
-            modelo="sale.order",
-            metodo="create",
-            args=[
-                {
-                    "partner_id": partner_id,
-                    "order_line": lineas_pedido,
-                }
-            ],
+        sale_order_id = await _crear_y_confirmar_pedido(
+            run_odoo, partner_id, productos_a_comprar
         )
 
-        if isinstance(sale_order_id, list):
-            sale_order_id = sale_order_id[0]
+        await _validar_entrega_silenciosa(run_odoo, sale_order_id)
 
-        # 2. CONFIRMAR EL PEDIDO (Genera la orden de entrega y reserva stock)
-        logger.info(f"Confirmando Pedido {sale_order_id} para reservar stock...")
-        await ejecutar_odoo(
-            http_client=http_client,
-            odoo_url=tenant_data["odoo_url"],
-            db=tenant_db,
-            uid=tenant_data["odoo_bot_user"],
-            api_key=tenant_data["odoo_bot_api_key"],
-            modelo="sale.order",
-            metodo="action_confirm",
-            args=[[sale_order_id]],
-        )
+        factura_id = await _generar_y_publicar_factura(run_odoo, sale_order_id)
 
-        # ==========================================
-        # 3. VALIDAR ENTREGA (Descuento físico real con parche SMS)
-        # ==========================================
-        logger.info("Buscando órdenes de entrega asociadas al pedido...")
-        pedido_entregas = await ejecutar_odoo(
-            http_client=http_client,
-            odoo_url=tenant_data["odoo_url"],
-            db=tenant_db,
-            uid=tenant_data["odoo_bot_user"],
-            api_key=tenant_data["odoo_bot_api_key"],
-            modelo="sale.order",
-            metodo="read",
-            args=[[sale_order_id]],
-            kwargs={"fields": ["picking_ids"]},
-        )
-
-        picking_ids = (
-            pedido_entregas[0].get("picking_ids", []) if pedido_entregas else []
-        )
-
-        if picking_ids:
-            for picking_id in picking_ids:
-                logger.info(f"Validando entrega {picking_id} en modo silencioso...")
-
-                # EL FIX: Inyectamos "skip_sms" para que Odoo no intente crear el popup
-                validacion_res = await ejecutar_odoo(
-                    http_client=http_client,
-                    odoo_url=tenant_data["odoo_url"],
-                    db=tenant_db,
-                    uid=tenant_data["odoo_bot_user"],
-                    api_key=tenant_data["odoo_bot_api_key"],
-                    modelo="stock.picking",
-                    metodo="button_validate",
-                    args=[[picking_id]],
-                    kwargs={"context": {"skip_sms": True}},
-                )
-
-                # Si Odoo devuelve un asistente pidiendo confirmación de "Transferencia Inmediata"
-                if (
-                    isinstance(validacion_res, dict)
-                    and validacion_res.get("res_model") == "stock.immediate.transfer"
-                ):
-                    logger.info(
-                        "Forzando transferencia inmediata para descontar todo el stock..."
-                    )
-
-                    # Extraemos el contexto que devuelve Odoo y le volvemos a inyectar el skip_sms
-                    ctx = validacion_res.get("context", {})
-                    ctx["skip_sms"] = True
-
-                    immediate_transfer_id = await ejecutar_odoo(
-                        http_client=http_client,
-                        odoo_url=tenant_data["odoo_url"],
-                        db=tenant_db,
-                        uid=tenant_data["odoo_bot_user"],
-                        api_key=tenant_data["odoo_bot_api_key"],
-                        modelo="stock.immediate.transfer",
-                        metodo="create",
-                        args=[{"pick_ids": [[4, picking_id]]}],
-                        kwargs={"context": ctx},
-                    )
-
-                    if isinstance(immediate_transfer_id, list):
-                        immediate_transfer_id = immediate_transfer_id[0]
-
-                    await ejecutar_odoo(
-                        http_client=http_client,
-                        odoo_url=tenant_data["odoo_url"],
-                        db=tenant_db,
-                        uid=tenant_data["odoo_bot_user"],
-                        api_key=tenant_data["odoo_bot_api_key"],
-                        modelo="stock.immediate.transfer",
-                        metodo="process",
-                        args=[[immediate_transfer_id]],
-                        kwargs={"context": ctx},
-                    )
-            logger.info(
-                "¡Inventario físico descontado correctamente sin alertas de SMS!"
-            )
-        else:
-            logger.warning(
-                "No se generó entrega para este pedido (¿El producto es un servicio?)."
-            )
-        # ==========================================
-
-        # 4. CREAR EL ASISTENTE DE FACTURACIÓN (WIZARD)
-        logger.info("Abriendo asistente de facturación en Odoo...")
-        wizard_id = await ejecutar_odoo(
-            http_client=http_client,
-            odoo_url=tenant_data["odoo_url"],
-            db=tenant_db,
-            uid=tenant_data["odoo_bot_user"],
-            api_key=tenant_data["odoo_bot_api_key"],
-            modelo="sale.advance.payment.inv",
-            metodo="create",
-            args=[
-                {
-                    "advance_payment_method": "delivered",
-                }
-            ],
-            kwargs={
-                "context": {
-                    "active_model": "sale.order",
-                    "active_ids": [sale_order_id],
-                    "active_id": sale_order_id,
-                }
-            },
-        )
-
-        if isinstance(wizard_id, list):
-            wizard_id = wizard_id[0]
-
-        # 5. GENERAR LA FACTURA DESDE EL ASISTENTE
-        logger.info("Generando Factura a partir del asistente...")
-        await ejecutar_odoo(
-            http_client=http_client,
-            odoo_url=tenant_data["odoo_url"],
-            db=tenant_db,
-            uid=tenant_data["odoo_bot_user"],
-            api_key=tenant_data["odoo_bot_api_key"],
-            modelo="sale.advance.payment.inv",
-            metodo="create_invoices",
-            args=[[wizard_id]],
-        )
-
-        # 6. OBTENER EL ID DE LA FACTURA GENERADA
-        logger.info("Buscando el ID de la factura generada...")
-        pedido_actualizado = await ejecutar_odoo(
-            http_client=http_client,
-            odoo_url=tenant_data["odoo_url"],
-            db=tenant_db,
-            uid=tenant_data["odoo_bot_user"],
-            api_key=tenant_data["odoo_bot_api_key"],
-            modelo="sale.order",
-            metodo="read",
-            args=[[sale_order_id]],
-            kwargs={"fields": ["invoice_ids"]},
-        )
-
-        factura_id = None
-        if pedido_actualizado and pedido_actualizado[0].get("invoice_ids"):
-            factura_id = pedido_actualizado[0]["invoice_ids"][0]
-
-        # 7. PUBLICAR LA FACTURA (Validación Contable)
-        if factura_id:
-            await ejecutar_odoo(
-                http_client=http_client,
-                odoo_url=tenant_data["odoo_url"],
-                db=tenant_db,
-                uid=tenant_data["odoo_bot_user"],
-                api_key=tenant_data["odoo_bot_api_key"],
-                modelo="account.move",
-                metodo="action_post",
-                args=[[factura_id]],
-            )
-            logger.info(f"Factura {factura_id} publicada con éxito.")
-
-            # REGISTRAR EL PAGO AUTOMÁTICAMENTE
-            logger.info("Abriendo asistente de pago para conciliar la factura...")
-            register_wizard_id = await ejecutar_odoo(
-                http_client=http_client,
-                odoo_url=tenant_data["odoo_url"],
-                db=tenant_db,
-                uid=tenant_data["odoo_bot_user"],
-                api_key=tenant_data["odoo_bot_api_key"],
-                modelo="account.payment.register",
-                metodo="create",
-                args=[{}],
-                kwargs={
-                    "context": {
-                        "active_model": "account.move",
-                        "active_ids": [factura_id],
-                        "active_id": factura_id,
-                    }
-                },
-            )
-
-            if isinstance(register_wizard_id, list):
-                register_wizard_id = register_wizard_id[0]
-
-            logger.info("Confirmando el pago en Odoo...")
-            await ejecutar_odoo(
-                http_client=http_client,
-                odoo_url=tenant_data["odoo_url"],
-                db=tenant_db,
-                uid=tenant_data["odoo_bot_user"],
-                api_key=tenant_data["odoo_bot_api_key"],
-                modelo="account.payment.register",
-                metodo="action_create_payments",
-                args=[[register_wizard_id]],
-            )
-            logger.info(f"Factura {factura_id} marcada exitosamente como PAGADA.")
-
-            # MANEJO DEL ACCES_TOKEN Y URL MULTI-INQUILINO
-            logger.info("Verificando token de acceso público...")
-            factura_data = await ejecutar_odoo(
-                http_client=http_client,
-                odoo_url=tenant_data["odoo_url"],
-                db=tenant_db,
-                uid=tenant_data["odoo_bot_user"],
-                api_key=tenant_data["odoo_bot_api_key"],
-                modelo="account.move",
-                metodo="read",
-                args=[[factura_id]],
-                kwargs={"fields": ["access_token"]},
-            )
-
-            token = factura_data[0].get("access_token") if factura_data else None
-
-            if not token:
-                logger.info("Inyectando token seguro...")
-                token = str(uuid.uuid4())
-                await ejecutar_odoo(
-                    http_client=http_client,
-                    odoo_url=tenant_data["odoo_url"],
-                    db=tenant_db,
-                    uid=tenant_data["odoo_bot_user"],
-                    api_key=tenant_data["odoo_bot_api_key"],
-                    modelo="account.move",
-                    metodo="write",
-                    args=[[factura_id], {"access_token": token}],
-                )
-
-            public_base_url = os.getenv(
-                "ODOO_URL_PUBLIC", f"http://{tenant_db}.127.0.0.1.nip.io:8069"
-            )
-
-            base_url_limpia = public_base_url.rstrip("/")
-            enlace_factura = (
-                f"{base_url_limpia}/my/invoices/{factura_id}?access_token={token}"
-            )
-
-            logger.info(f"Enlace de autogestión pública generado: {enlace_factura}")
-
-            return {
-                "status": "success",
-                "sale_order_id": sale_order_id,
-                "invoice_id": factura_id,
-                "invoice_url": enlace_factura,
-            }
-
-        else:
+        if not factura_id:
             logger.error("No se encontró ninguna factura asociada al pedido.")
             return {
                 "status": "error",
                 "info": "Fallo al enlazar la factura con el pedido",
             }
+
+        await _registrar_pago_factura(run_odoo, factura_id)
+
+        enlace_factura = await _garantizar_enlace_publico(
+            run_odoo, factura_id, tenant_db
+        )
+
+        return {
+            "status": "success",
+            "sale_order_id": sale_order_id,
+            "invoice_id": factura_id,
+            "invoice_url": enlace_factura,
+        }
 
     except Exception as e:
         logger.error(f"Fallo crítico generando la venta en Odoo: {e}")

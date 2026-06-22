@@ -18,7 +18,11 @@ en tiempo real. En casos difíciles, el sistema pasa el mensaje a una persona pa
 Integrado de manera profunda con el ERP Odoo, el sistema une todo para facilitar el control de la empresa y atención a clientes.
 
 
+<<<<<<< HEAD
 ## Arquitectura y Tecnologías
+=======
+## Tecnologías
+>>>>>>> 4d3d819 (FIX: Modificada lógica de factura que no descontaba el producto del inventario)
 Este sistema se diseñó para ser rápido, eficiente y continuo.
 
 *   **Core:** Python 3.14-slim, FastAPI.
@@ -30,15 +34,124 @@ Este sistema se diseñó para ser rápido, eficiente y continuo.
 *   **Módulos de Odoo Utilizados:** Facturación, Conversaciones, Inventario, Ventas y Automatizaciones.
 
 
+<<<<<<< HEAD
+=======
+# Arquitectura:
+
+```
+├── app
+│   ├── api (endpoints)
+│   │   ├── catalog.py
+│   │   ├── message.py
+│   │   └── register.py
+│   ├── clients (clientes de APIS externas)
+│   │   ├── db.py
+│   │   ├── odoo_jsonrpc.py
+│   │   ├── redis.py
+│   │   └── worker.py
+│   ├── frontend  (frontend de formularios y registro)
+│   │   └── forms
+│   │       ├── admin
+│   │       │   ├── admin-script.js
+│   │       │   ├── admin-styles.css
+│   │       │   └── index.html
+│   │       └── public
+│   │           ├── exito.html
+│   │           ├── formulario.html
+│   │           ├── script.js
+│   │           └── styles.css
+│   ├── ia (Funciones de IA y generador de embeddings)
+│   │   ├── groq_IA.py
+│   │   └── product_embedding.py
+│   ├── schemas (schemas Pydantic)
+│   │   ├── catalog.py
+│   │   ├── message.py
+│   │   ├── register.py
+│   │   └── translators_schemas
+│   │       ├── telegram.py
+│   │       └── whatsapp.py
+│   ├── scripts (scripts y payloads para registros de inquilinos automáticos y pruebas)
+│   │   ├── register_payloads
+│   │   │   ├── __init__.py
+│   │   │   ├── payload_admin_completed.py
+│   │   │   └── payload_form_data.py
+│   │   └── register_script.py
+│   ├── security (Funciones de seguridad)
+│   │   ├── encrypter.py
+│   │   ├── errors_catcher.py
+│   │   └── x_api_key.py
+│   ├── services (Codigo de procesamiento para los endpoints)
+│   │   ├── message_handler.py
+│   │   ├── message_utils
+│   │   │   ├── cache_client.py
+│   │   │   ├── cache.py
+│   │   │   ├── commands
+│   │   │   │   ├── facturar.py
+│   │   │   │   └── prompt_factura.py
+│   │   │   ├── get_history.py
+│   │   │   ├── html_format.py
+│   │   │   ├── register_client.py
+│   │   │   └── update_context.py
+│   │   ├── register_handler.py
+│   │   └── register_utils
+│   │       ├── api_key_generator.py
+│   │       ├── duplicate.py
+│   │       ├── name_schema.py
+│   │       ├── payment_plans.py
+│   │       ├── register_tenant.py
+│   │       ├── save_credentials.py
+│   │       └── update_webhook_odoo.py
+│   ├── sql (Código SQL puro que se ejecuta con asyncpg)
+│   │   ├── init_public.sql
+│   │   └── init_tenant.sql
+│   └── translators (Traduce Payloads de plataformas a Objetos Python)
+│       ├── telegram.py
+│       ├── translator.py
+│       └── whatsaap.py
+├── docker-compose.yml
+├── Dockerfile
+├── main.py
+├── README.md
+├── requirements.txt
+├── runner.sh (script de arranque)
+├── system_prompt.txt
+├── tests  (Pruebas Unitarias y de integración)
+│   ├── conftest.py
+│   ├── __init__.py
+│   ├── integration
+│   │   ├── catalog
+│   │   ├── message
+│   │   │   └── test_message_handler.py
+│   │   └── register
+│   │       ├── test_generate_form.py
+│   │       └── test_save_form_data_tenant.py
+│   ├── payloads
+│   │   └── whatsapp
+│   │       └── message.py
+│   ├── unit
+│   │   ├── security
+│   │   ├── services
+│   │   └── translators
+│   └── validators
+│       ├── __init__.py
+│       └── url_validator.py
+└── worker.py
+
+```
+
+>>>>>>> 4d3d819 (FIX: Modificada lógica de factura que no descontaba el producto del inventario)
 
 ## Despliegue y Arranque
 El script `runner.sh` instala automáticamente los contenedores, PostgreSQL y Odoo.
 
+<<<<<<< HEAD
 
 
 
 ## Ejecución
 
+=======
+>>>>>>> 4d3d819 (FIX: Modificada lógica de factura que no descontaba el producto del inventario)
 ```
 chmod +x runner.sh
 ./runner.sh
@@ -48,8 +161,14 @@ chmod +x runner.sh
 
 ## Endpoints Principales
 El sistema recibe datos al instante, los procesa en segundo plano y usa IA para extraer la intención de los mensajes
+<<<<<<< HEAD
 
 POST /api/v1/messages/{tenant_db}/{platform}
+=======
+```
+POST /api/v1/messages/{tenant_db}/{platform}
+```
+>>>>>>> 4d3d819 (FIX: Modificada lógica de factura que no descontaba el producto del inventario)
 Endpoint principal para recibir mensajes externos.
 
 
@@ -69,12 +188,21 @@ El código cuenta con  pruebas unitarias y de integración para asegurara que la
 
 Para ejecutar las pruebas:
 
+<<<<<<< HEAD
 
 	pytest -v
 
 
 
 ### Variables de Entorno
+=======
+```
+pytest -v
+```
+
+
+# Variables de Entorno
+>>>>>>> 4d3d819 (FIX: Modificada lógica de factura que no descontaba el producto del inventario)
 Crea un archivo `.env` en la raíz del proyecto. El sistema requiere aproximadamente 30 variables operativas. Aquí se muestran las más críticas:
 
 ```env
