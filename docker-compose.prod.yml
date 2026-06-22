@@ -9,7 +9,6 @@ services:
     volumes:
       - ./npm_data:/data
       - ./npm_letsencrypt:/etc/letsencrypt
-    networks:
-      - main-network
+
     depends_on:
       - backend

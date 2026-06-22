@@ -11,6 +11,7 @@ from app.services.register_utils.payment_plans import CONFIGURACION_PLANES
 import secrets
 from app.services.register_utils.update_webhook_odoo import actualizar_webhook_odoo
 import json
+from unidecode import unidecode
 
 
 logger = logging.getLogger(__name__)
@@ -24,7 +25,7 @@ async def generate_tenant_link(redis, name: str, prefix_url: str):
     """Genera url única de formulario para el inquilino llene sus datos"""
     logger.info("Generando URL para Nuevo Inquilino")
     token = secrets.token_urlsafe(32)
-    name = name.replace(" ", "").strip().lower()
+    name = unidecode(name.replace(" ", "").strip().lower())
     llave_sesion = f"form:public:{name}"
     await redis.set(llave_sesion, token, ex=172800)
     url_base = os.getenv("URL_API_BASE", "http://localhost:8000")
@@ -41,7 +42,7 @@ async def save_form_data(redis, llave_sesion: str, data: Form, prefix_url: str):
         raise ValueError("Token Inválido")
     try:
         logger.info("Guardando datos en Redis")
-        nombre = data.name.replace(" ", "").strip()
+        nombre = unidecode(data.name.replace(" ", "").strip())
         llave_datos = f"tenant:admin:{nombre.lower()}"
         datos = data.model_dump_json()
         await redis.set(llave_datos, datos, ex=86400)

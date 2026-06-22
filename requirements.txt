@@ -17,3 +17,4 @@ pytest-asyncio
 pytest-cov
 faker
 fakeredis
+unidecode

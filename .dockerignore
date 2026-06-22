@@ -4,3 +4,5 @@
 venv/
 .venv/
 diagram/
+npm_data/
+npm_letsencrypt/
