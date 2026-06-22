@@ -200,7 +200,7 @@ fi
 echo "Levantando el resto de los servicios de la aplicación..."
 
 if [ "$ENTORNO" == "produccion" ]; then
-  docker compose -f docker compose.yml -f docker-compose.prod.yml up -d
+  docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 elif [ "$ENTORNO" == "desarrollo" ]; then
   docker compose up -d

@@ -1,6 +1,6 @@
 services:
   proxy:
-    build: nginx:stable-alpine
+    image: nginx:stable-alpine
     restart: "always"
     ports:
       - "80:80"
