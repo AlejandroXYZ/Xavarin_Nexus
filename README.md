@@ -18,12 +18,7 @@ en tiempo real. En casos difíciles, el sistema pasa el mensaje a una persona pa
 Integrado de manera profunda con el ERP Odoo, el sistema une todo para facilitar el control de la empresa y atención a clientes.
 
 
-<<<<<<< HEAD
-## Arquitectura y Tecnologías
-=======
 ## Tecnologías
->>>>>>> 4d3d819 (FIX: Modificada lógica de factura que no descontaba el producto del inventario)
-Este sistema se diseñó para ser rápido, eficiente y continuo.
 
 *   **Core:** Python 3.14-slim, FastAPI.
 *   **Base de Datos & Búsqueda Semántica:** PostgreSQL, manipulando las query SQL con `asyncpg` para máxima velocidad y pgvector para almacenamiento de embeddings.
@@ -34,8 +29,7 @@ Este sistema se diseñó para ser rápido, eficiente y continuo.
 *   **Módulos de Odoo Utilizados:** Facturación, Conversaciones, Inventario, Ventas y Automatizaciones.
 
 
-<<<<<<< HEAD
-=======
+
 # Arquitectura:
 
 ```
@@ -139,19 +133,9 @@ Este sistema se diseñó para ser rápido, eficiente y continuo.
 
 ```
 
->>>>>>> 4d3d819 (FIX: Modificada lógica de factura que no descontaba el producto del inventario)
-
 ## Despliegue y Arranque
 El script `runner.sh` instala automáticamente los contenedores, PostgreSQL y Odoo.
 
-<<<<<<< HEAD
-
-
-
-## Ejecución
-
-=======
->>>>>>> 4d3d819 (FIX: Modificada lógica de factura que no descontaba el producto del inventario)
 ```
 chmod +x runner.sh
 ./runner.sh
@@ -161,15 +145,11 @@ chmod +x runner.sh
 
 ## Endpoints Principales
 El sistema recibe datos al instante, los procesa en segundo plano y usa IA para extraer la intención de los mensajes
-<<<<<<< HEAD
 
-POST /api/v1/messages/{tenant_db}/{platform}
-=======
+
 ```
 POST /api/v1/messages/{tenant_db}/{platform}
 ```
->>>>>>> 4d3d819 (FIX: Modificada lógica de factura que no descontaba el producto del inventario)
-Endpoint principal para recibir mensajes externos.
 
 
 Parámetros de Ruta:
@@ -188,17 +168,7 @@ El código cuenta con  pruebas unitarias y de integración para asegurara que la
 
 Para ejecutar las pruebas:
 
-<<<<<<< HEAD
-
 	pytest -v
-
-
-
-### Variables de Entorno
-=======
-```
-pytest -v
-```
 
 
 # Variables de Entorno
