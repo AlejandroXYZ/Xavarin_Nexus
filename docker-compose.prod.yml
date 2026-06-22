@@ -10,6 +10,8 @@ services:
       - ./letsencrypt/:/etc/letsencrypt
     networks:
       - main-network
+    depends_on:
+      - backend
 
 networks:
   main-network:

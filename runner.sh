@@ -6,10 +6,10 @@ set +a
 
 echo "Encendiendo contenedores base (DB y Odoo)..."
 
-docker-compose up -d db odoo
+docker compose up -d db odoo
 
 echo -n " Esperando a que Postgres esté listo para recibir conexiones..."
-while ! docker-compose exec -T db pg_isready -U "$POSTGRES_USER" >/dev/null 2>/dev/null; do
+while ! docker compose exec -T db pg_isready -U "$POSTGRES_USER" >/dev/null 2>/dev/null; do
   echo -n "."
   sleep 1
 done
@@ -19,7 +19,7 @@ echo "Configurando la Contraseña Maestra y Proxy en Odoo..."
 
 [[ "$ENTORNO" == "desarrollo" ]] && estado="False" || estado="True"
 
-docker-compose exec -T odoo python3 -c "
+docker compose exec -T odoo python3 -c "
 import configparser
 config = configparser.ConfigParser()
 # Leemos el archivo actual (si está vacío, Python lo maneja sin error)
@@ -38,19 +38,19 @@ with open('/etc/odoo/odoo.conf', 'w') as f:
     config.write(f)
 "
 
-docker-compose restart odoo
+docker compose restart odoo
 echo "Contraseña maestra inyectada y Odoo reiniciado."
 
 echo "Verificando si la base de datos plantilla '$DB' ya existe en Postgres..."
 
-DB_EXISTE=$(docker-compose exec -T db env PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB'")
+DB_EXISTE=$(docker compose exec -T db env PGPASSWORD="$POSTGRES_PASSWORD" psql -U "$POSTGRES_USER" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB'")
 DB_EXISTE=$(echo "$DB_EXISTE" | tr -d '\r\n[:space:]')
 
 if [ "$DB_EXISTE" = "1" ]; then
   echo "La base de datos '$DB' ya existe"
 else
   echo "Base de datos nueva detectada. Ejecutando instalación de módulos de Odoo..."
-  docker-compose run --rm odoo odoo -d "$DB" -i base,sale,stock,mail,base_automation --load-language=es_VE --stop-after-init
+  docker compose run --rm odoo odoo -d "$DB" -i base,sale,stock,mail,base_automation --load-language=es_VE --stop-after-init
 
   echo "Cambiando la contraseña del usuario administrador interno..."
   echo "env.ref('base.user_admin').write({'password': '${ODOO_PASSWORD_ADMIN_BASE}'}); env.cr.commit()" | docker-compose run --rm -T odoo odoo shell -d "$DB"
@@ -184,7 +184,7 @@ else:
     env.cr.commit()
 EOF
   )
-  BOT_OUTPUT=$(echo "$BOT_SCRIPT" | docker-compose run --rm -T odoo odoo shell -d "$DB")
+  BOT_OUTPUT=$(echo "$BOT_SCRIPT" | docker compose run --rm -T odoo odoo shell -d "$DB")
   BOT_KEY=$(echo "$BOT_OUTPUT" | grep "FASTAPI_MAGIC_KEY:" | awk '{print $2}' | tr -d '\r')
 
   if [ ! -z "$BOT_KEY" ]; then
@@ -199,4 +199,12 @@ fi
 
 echo "Levantando el resto de los servicios de la aplicación..."
 
-docker-compose up -d
+if [ "$ENTORNO" == "produccion" ]; then
+  docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+elif [ "$ENTORNO" == "desarrollo" ]; then
+  docker compose up -d
+else
+  echo "Variable de Entorno: ENTORNO es igual a $ENTORNO, no válido"
+  exit 1
+fi
