@@ -16,7 +16,8 @@ database = "postgres"
 new_user = os.getenv("NEW_USER_DB", "fastapi")
 new_password = os.getenv("NEW_PASSWORD_DB", "123")
 new_db = os.getenv("NEW_DB", "db")
-base_dir = Path(__file__).parent / "sql"
+base_dir = Path(__file__).parent.parent / "sql"
+logger.info(f"Base dir : {base_dir}")
 
 
 async def init_schema(

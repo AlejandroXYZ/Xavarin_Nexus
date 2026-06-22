@@ -14,6 +14,7 @@ from app.services.message_utils.cache_client import get_cache_client
 from app.services.message_utils.html_format import format_html, limpiar_html
 from app.security.errors_catcher import manual_handling, message_pending_try
 from app.services.message_utils.commands.facturar import procesar_factura
+import traceback
 
 logger = logging.getLogger(__name__)
 
