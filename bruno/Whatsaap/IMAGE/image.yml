@@ -1,0 +1,64 @@
+info:
+  name: image
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:8000/api/v1/message/pepe-83f19/whatsapp
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: X-API-KEY
+      value: AlKsDjFhGm10B6V9xz03msYQ18BXz&94XmncHj4299810836183930NJCGmcis
+  body:
+    type: json
+    data: |
+      {
+        "object": "whatsapp_business_account",
+        "entry": [
+          {
+            "id": "109483058739402",
+            "changes": [
+              {
+                "value": {
+                  "messaging_product": "whatsapp",
+                  "metadata": {
+                    "display_phone_number": "15550199999",
+                    "phone_number_id": "103948572049583"
+                  },
+                  "contacts": [
+                    {
+                      "profile": {
+                        "name": "Juan Pérez"
+                      },
+                      "wa_id": "34600000000"
+                    }
+                  ],
+                  "messages": [
+                    {
+                      "from": "34600000000",
+                      "id": "wamid.HBgLMzQ2MDAwMDAwMDAVAgARGBJBOTg3RjY3REU0RTBBQjM0RTkA",
+                      "timestamp": "1718739540",
+                      "type": "image",
+                      "image": {
+                        "mime_type": "image/jpeg",
+                        "sha256": "8f39a07c3905e46c72956de1cb93d7c2b64d1f21f5798e404bf7a72d3e099684",
+                        "id": "495830294857204",
+                        "caption": "Mira esta foto del servidor"
+                      }
+                    }
+                  ]
+                },
+                "field": "messages"
+              }
+            ]
+          }
+        ]
+      }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

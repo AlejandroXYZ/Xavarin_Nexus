@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SaaS Onboarding</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/intl-tel-input@23.0.4/build/css/intlTelInput.css"
+    />
+    <link rel="stylesheet" href="/static/forms/public/styles.css" />
+  </head>
+  <body>
+    <div class="agency-logo">
+      <svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+        <polyline points="2 17 12 22 22 17"></polyline>
+        <polyline points="2 12 12 17 22 12"></polyline>
+      </svg>
+      <span>Mi Agencia SaaS</span>
+    </div>
+
+    <div class="form-container" id="formContainer">
+      <form id="stepForm" novalidate>
+        <div class="step active" data-step="1">
+          <div class="question-header">
+            <h2>¡Hola! Vamos a configurar tu espacio. 👋</h2>
+            <p>Para empezar, ¿cuál es el nombre de tu empresa?</p>
+          </div>
+          <div class="input-wrapper">
+            <input
+              type="text"
+              id="name"
+              name="name"
+              required
+              minlength="2"
+              placeholder="Escribe el nombre comercial exacto..."
+              autocomplete="off"
+            />
+          </div>
+          <button type="button" class="next-btn">
+            Comenzar <span>→</span>
+          </button>
+        </div>
+
+        <div class="step plans-step" data-step="2">
+          <div class="question-header" style="margin-bottom: 1rem">
+            <h2>
+              Elige el plan ideal para
+              <span id="displayCompanyName" style="color: var(--primary-btn)"
+                >tu empresa</span
+              >
+              🚀
+            </h2>
+            <p>
+              Toca o pasa el ratón por encima para ver detalles y
+              <b>haz clic</b> para elegir uno.
+            </p>
+          </div>
+          <div class="plans-container" id="plansContainer">
+            <input
+              type="text"
+              id="payment_plan"
+              name="payment_plan"
+              required
+              style="
+                opacity: 0;
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 1px;
+                height: 1px;
+                pointer-events: none;
+                z-index: -1;
+              "
+            />
+
+            <div class="plan-card" data-value="basico">
+              <div class="plan-inner">
+                <div class="plan-front">
+                  <h3>Básico</h3>
+                  <div class="price">$49<span>/mes</span></div>
+                </div>
+                <div class="plan-back">
+                  <ul>
+                    <li>Bot de Telegram con IA.</li>
+                    <li>Catálogo web atractivo.</li>
+                  </ul>
+                  <div class="select-text">¡Clic para elegir!</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="plan-card" data-value="profesional">
+              <div class="plan-inner">
+                <div class="plan-front">
+                  <h3>Profesional</h3>
+                  <div class="price">$99<span>/mes</span></div>
+                </div>
+                <div class="plan-back">
+                  <ul>
+                    <li>Todo lo del Básico.</li>
+                    <li>Agente IA en WhatsApp.</li>
+                    <li>Número internacional (+1).</li>
+                  </ul>
+                  <div class="select-text">¡Clic para elegir!</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="plan-card" data-value="enterprise">
+              <div class="plan-inner">
+                <div class="plan-front">
+                  <h3>Enterprise</h3>
+                  <div class="price">$199<span>/mes</span></div>
+                </div>
+                <div class="plan-back">
+                  <ul>
+                    <li>Todo lo del Profesional.</li>
+                    <li>Tu propio WhatsApp.</li>
+                    <li>IA en Instagram y TikTok.</li>
+                  </ul>
+                  <div class="select-text call-req">*(Requiere llamada)*</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="btn-group">
+            <button type="button" class="prev-btn">Volver</button>
+            <button type="button" class="next-btn">
+              Siguiente <span>→</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="step" data-step="3">
+          <div class="question-header">
+            <h2>Genial. ¿Cómo podemos contactarlos? ✉️</h2>
+          </div>
+          <div class="input-wrapper">
+            <label for="email">Correo Electrónico (obligatorio)</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              required
+              placeholder="ejemplo@empresa.com"
+            />
+          </div>
+          <div class="input-wrapper">
+            <label for="phone_number">Número Telefónico (obligatorio)</label>
+            <input type="tel" id="phone_number" name="phone_number" required />
+          </div>
+          <div class="btn-group">
+            <button type="button" class="prev-btn">Volver</button>
+            <button type="button" class="next-btn">
+              Siguiente <span>→</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="step" data-step="4">
+          <div class="question-header">
+            <h2>Configuremos tu Inteligencia Artificial 🤖</h2>
+          </div>
+          <div class="input-wrapper">
+            <label for="attention_tone">Tono de Atención de la IA *</label>
+            <select id="attention_tone" name="attention_tone" required>
+              <option value="" disabled selected>Elige un tono...</option>
+              <option value="formal">Formal y Respetuoso</option>
+              <option value="amable">Amable y Cercano</option>
+              <option value="entusiasta">Entusiasta y Persuasivo</option>
+            </select>
+          </div>
+          <div class="btn-group">
+            <button type="button" class="prev-btn">Volver</button>
+            <button type="button" class="next-btn">
+              Siguiente <span>→</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="step" data-step="5">
+          <div class="question-header">
+            <h2>Cuéntanos un poco más sobre lo que hacen 🏢</h2>
+          </div>
+          <div class="input-wrapper">
+            <label for="description">Descripción (obligatorio)</label>
+            <textarea
+              id="description"
+              name="description"
+              rows="2"
+              required
+              placeholder="Nuestra empresa se dedica a..."
+            ></textarea>
+          </div>
+          <div class="input-wrapper">
+            <label for="website">Sitio Web (Opcional)</label>
+            <input
+              type="url"
+              id="website"
+              name="website"
+              placeholder="https://www.tu-sitio.com"
+            />
+          </div>
+          <div class="btn-group">
+            <button type="button" class="prev-btn">Volver</button>
+            <button type="button" class="next-btn">
+              Siguiente <span>→</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="step" data-step="6">
+          <div class="question-header">
+            <h2>Ubicación y Horarios 📍</h2>
+          </div>
+          <!-- Selector de País con Buscador -->
+          <div class="input-wrapper">
+            <label for="country">País *</label>
+            <input
+              type="text"
+              id="country"
+              name="country"
+              required
+              list="country_list"
+              placeholder="Escribe o busca tu país..."
+              autocomplete="off"
+            />
+            <datalist id="country_list">
+              <!-- Las opciones se cargarán aquí -->
+            </datalist>
+          </div>
+          <div class="input-wrapper">
+            <label for="exact_address">Dirección (Opcional)</label>
+            <input
+              type="text"
+              id="exact_address"
+              name="exact_address"
+              placeholder="Ciudad, Estado, Código Postal, Calle..."
+            />
+          </div>
+          <div class="input-wrapper">
+            <label for="schedule">Horarios de Atención (Opcional)</label>
+            <input
+              type="text"
+              id="schedule"
+              name="schedule"
+              placeholder="Lunes a Viernes de 9:00 a 18:00"
+            />
+          </div>
+          <div class="btn-group">
+            <button type="button" class="prev-btn">Volver</button>
+            <button type="button" class="next-btn">
+              Siguiente <span>→</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="step" data-step="7">
+          <div class="question-header">
+            <h2>Ecosistema Digital 🌐</h2>
+          </div>
+          <div class="input-wrapper">
+            <label>¿Tu empresa ya utiliza Odoo?</label>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="uses_odoo" value="si" id="odoo_yes" />
+                Sí
+              </label>
+              <label class="radio-label">
+                <input
+                  type="radio"
+                  name="uses_odoo"
+                  value="no"
+                  id="odoo_no"
+                  checked
+                />
+                No
+              </label>
+            </div>
+          </div>
+          <div
+            class="input-wrapper"
+            id="odoo_url_wrapper"
+            style="display: none"
+          >
+            <label for="odoo_url">URL de Odoo (Opcional)</label>
+            <input
+              type="url"
+              id="odoo_url"
+              name="odoo_url"
+              placeholder="https://miempresa.odoo.com"
+            />
+          </div>
+          <div class="input-wrapper">
+            <label>Redes Sociales (Opcionales)</label>
+            <div class="social-inputs">
+              <input
+                type="text"
+                name="red social 1"
+                placeholder="(Ej:instagram: @miempresa)"
+              />
+              <input
+                type="text"
+                name="red social 2"
+                placeholder="(Ej: facebook: miempresa)"
+              />
+              <input
+                type="text"
+                name="red social 3"
+                placeholder="(Ej. Linkedin: mi_usuario)"
+              />
+            </div>
+          </div>
+          <div class="btn-group">
+            <button type="button" class="prev-btn">Volver</button>
+            <button type="button" class="next-btn">
+              Siguiente <span>→</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="step" data-step="8">
+          <div class="question-header">
+            <h2>Últimos detalles: Políticas y Finanzas 📝</h2>
+          </div>
+
+          <div class="input-wrapper">
+            <label
+              >¿Hacen entregas por delivery o envíos
+              nacionales/internacionales?</label
+            >
+            <div class="radio-group">
+              <label class="radio-label">
+                <input
+                  type="radio"
+                  name="has_shipping"
+                  value="si"
+                  id="shipping_yes"
+                />
+                Sí
+              </label>
+              <label class="radio-label">
+                <input
+                  type="radio"
+                  name="has_shipping"
+                  value="no"
+                  id="shipping_no"
+                  checked
+                />
+                No
+              </label>
+            </div>
+          </div>
+          <div
+            class="input-wrapper"
+            id="shipping_details_wrapper"
+            style="display: none"
+          >
+            <label for="shipping_policies"
+              >Cuéntenos más al respecto (Costos, zonas, tiempos)</label
+            >
+            <textarea
+              id="shipping_policies"
+              name="shipping_policies"
+              rows="2"
+              placeholder="Ej: Delivery gratis en la ciudad, envíos nacionales cobro a destino..."
+            ></textarea>
+          </div>
+
+          <div class="input-wrapper">
+            <label
+              >¿Ofrecen garantías de sus productos o aceptan
+              devoluciones?</label
+            >
+            <div class="radio-group">
+              <label class="radio-label">
+                <input
+                  type="radio"
+                  name="has_warranty"
+                  value="si"
+                  id="warranty_yes"
+                />
+                Sí
+              </label>
+              <label class="radio-label">
+                <input
+                  type="radio"
+                  name="has_warranty"
+                  value="no"
+                  id="warranty_no"
+                  checked
+                />
+                No
+              </label>
+            </div>
+          </div>
+          <div
+            class="input-wrapper"
+            id="warranty_details_wrapper"
+            style="display: none"
+          >
+            <label for="warranty_policies"
+              >Cuéntenos más al respecto (Condiciones, tiempos máximos)</label
+            >
+            <textarea
+              id="warranty_policies"
+              name="warranty_policies"
+              rows="2"
+              placeholder="Ej: 30 días de garantía por defectos de fábrica. No hay devoluciones..."
+            ></textarea>
+          </div>
+
+          <div class="input-wrapper">
+            <label for="bank_details">Datos Bancarios</label>
+            <textarea
+              id="bank_details"
+              name="bank_details"
+              rows="2"
+              placeholder="Cuentas para recibir pagos, Zelle, Pago Móvil, Binance..."
+            ></textarea>
+          </div>
+
+          <div class="btn-group">
+            <button type="button" class="prev-btn">Volver</button>
+            <button type="submit" id="submitBtn">Finalizar 🎉</button>
+          </div>
+        </div>
+      </form>
+
+      <div class="progress-container" id="progressContainer">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@23.0.4/build/js/intlTelInput.min.js"></script>
+    <script src="/static/forms/public/script.js"></script>
+  </body>
+</html>

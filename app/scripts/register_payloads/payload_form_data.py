@@ -1,0 +1,21 @@
+payload_form_completed_dict = {
+    "name": "pepe",
+    "description": "string",
+    "email": "pepe@example.com",
+    "phone_number": "+584120770999",
+    "website": "https://example.com/",
+    "exact_address": "string",
+    "social_networks": {
+        "telegram": "string",
+        "additionalProp2": "string",
+        "additionalProp3": "string",
+    },
+    "schedule": "string",
+    "attention_tone": "entusiasta",
+    "shipping_policies": "string",
+    "warranty_policies": "string",
+    "bank_details": "string",
+    "payment_plan": "profesional",
+    "odoo_url": "http://odoo:8069/",
+    "country": "Cuba",
+}

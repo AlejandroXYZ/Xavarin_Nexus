@@ -1,0 +1,67 @@
+info:
+  name: Mensaje_Actualizado
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: http://localhost:8000/api/v1/message/pepe-83f19/whatsapp
+  headers:
+    - name: Content-Type
+      value: application/json
+    - name: X-API-KEY
+      value: AlKsDjFhGm10B6V9xz03msYQ18BXz&94XmncHj4299810836183930NJCGmcis
+  body:
+    type: json
+    data: |
+      {
+        "object": "whatsapp_business_account",
+        "entry": [
+          {
+            "id": "102290129340398",
+            "changes": [
+              {
+                "field": "messages",
+                "value": {
+                  "messaging_product": "whatsapp",
+                  "metadata": {
+                    "display_phone_number": "15550783881",
+                    "phone_number_id": "106540352242922"
+                  },
+                  "contacts": [
+                    {
+                      "profile": {
+                        "name": "María Alejandra Silva"
+                      },
+                      "wa_id": "5491123456789"
+                    }
+                  ],
+                  "messages": [
+                    {
+                      "from": "5491123456789",
+                      "id": "wamid.HBgLNTQ5MTEyMzQ1Njc4OQYARGBIOTg3NjU0MzIxMDlBRUUzRkE=",
+                      "timestamp": "1718742500",
+                      "type": "edit",
+                      "edit": {
+                        "original_message_id": "wamid.HBgLNTQ5MTEyMzQ1Njc4OQYARGBIMTIzNDU2Nzg5MDFBRUUzRkE=",
+                        "message": {
+                          "type": "text",
+                          "text": {
+                            "body": "Hola, ya corregí el mensaje anterior"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

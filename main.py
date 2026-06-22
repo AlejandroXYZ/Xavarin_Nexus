@@ -4,9 +4,14 @@ from contextlib import asynccontextmanager, AsyncExitStack
 import os
 from fastapi import FastAPI
 import sys
-from app.api.webhook.webhook import webhook_router
+from app.api.message import message_router
 from app.clients.db import lifespan_db
 from app.clients.odoo_jsonrpc import lifespan_http_odoo
+from app.api.register import register_router
+from fastapi.staticfiles import StaticFiles
+from app.clients.redis import lifespan_redis
+from app.api.catalog import catalog_router
+from app.clients.worker import lifespan_worker
 
 dotenv.load_dotenv()
 
@@ -24,6 +29,8 @@ async def lifespan_main(app: FastAPI):
     async with AsyncExitStack() as stack:
         await stack.enter_async_context(lifespan_db(app))
         await stack.enter_async_context(lifespan_http_odoo(app))
+        await stack.enter_async_context(lifespan_redis(app))
+        await stack.enter_async_context(lifespan_worker(app))
 
         yield
 
@@ -46,4 +53,7 @@ else:
         lifespan=lifespan_main,
     )
 
-app.include_router(webhook_router)
+app.include_router(message_router)
+app.include_router(register_router)
+app.include_router(catalog_router)
+app.mount("/static", StaticFiles(directory="app/frontend"), name="static")

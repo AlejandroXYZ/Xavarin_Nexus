@@ -1,0 +1,606 @@
+/* ==========================================================
+   VARIABLES Y FONDOS
+   ========================================================== */
+:root {
+  --pastel-pink: #ffc3a0;
+  --pastel-peach: #ffafbd;
+  --pastel-blue: #a1c4fd;
+  --pastel-mint: #c2e9fb;
+  --text-dark: #2d3748;
+  --text-light: #718096;
+  --primary-btn: #7f9cf5;
+  --primary-btn-hover: #667eea;
+  --error-color: #fc8181;
+  --card-bg: rgba(255, 255, 255, 0.75);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: "Poppins", sans-serif;
+}
+
+body {
+  background: linear-gradient(
+    45deg,
+    var(--pastel-pink),
+    var(--pastel-peach),
+    var(--pastel-blue),
+    var(--pastel-mint)
+  );
+  background-size: 400% 400%;
+  animation: gradientBG 15s ease infinite;
+  color: var(--text-dark);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  overflow: hidden;
+}
+
+@keyframes gradientBG {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.agency-logo {
+  position: fixed;
+  top: 25px;
+  left: 35px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: rgba(0, 0, 0, 0.6);
+  z-index: 100;
+}
+.agency-logo svg {
+  width: 28px;
+  height: 28px;
+  stroke: rgba(0, 0, 0, 0.6);
+}
+
+/* ==========================================================
+   FORMULARIO Y PASOS
+   ========================================================== */
+.form-container {
+  width: 100%;
+  position: relative;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  transition: opacity 0.5s ease;
+}
+
+form {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.step {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, calc(-50% + 30px)) scale(0.95);
+  width: 90%;
+  max-width: 750px;
+  max-height: 85vh;
+  overflow-y: auto; /* Scroll interno activado */
+  background: var(--card-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 24px;
+  padding: 3rem;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.05);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.step.active {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, -50%) scale(1);
+  z-index: 10;
+}
+
+/* Scroll elegante */
+.step::-webkit-scrollbar {
+  width: 6px;
+}
+.step::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 10px 0;
+}
+.step::-webkit-scrollbar-thumb {
+  background: rgba(127, 156, 245, 0.5);
+  border-radius: 10px;
+}
+
+/* ==========================================================
+   TARJETAS DE PLANES (FLIP CARDS)
+   ========================================================== */
+.plans-step {
+  padding: 2.5rem;
+}
+
+.plans-container {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 1.5rem;
+  position: relative;
+  justify-content: center;
+}
+
+.plan-card {
+  flex: 1;
+  height: 280px;
+  perspective: 1000px;
+  cursor: pointer;
+}
+
+.plan-inner {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+  transform-style: preserve-3d;
+}
+
+.plan-card:hover .plan-inner {
+  transform: rotateY(180deg);
+}
+
+.plan-front,
+.plan-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  border-radius: 16px;
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+}
+
+.plan-front {
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+  z-index: 2;
+  text-align: center;
+  transition: border 0.3s ease;
+}
+
+.plan-front h3 {
+  font-size: 1.4rem;
+  color: var(--text-dark);
+  margin-bottom: 10px;
+}
+.plan-front .price {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary-btn);
+}
+.plan-front .price span {
+  font-size: 0.9rem;
+  color: var(--text-light);
+  font-weight: 400;
+}
+
+.plan-back {
+  background: var(--primary-btn);
+  color: white;
+  transform: rotateY(180deg);
+  box-shadow: 0 10px 25px rgba(127, 156, 245, 0.4);
+  justify-content: space-between;
+}
+
+.plan-back ul {
+  list-style: none;
+  font-size: 0.8rem;
+  text-align: left;
+  width: 100%;
+}
+.plan-back li {
+  margin-bottom: 8px;
+  position: relative;
+  padding-left: 18px;
+  line-height: 1.2;
+}
+.plan-back li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  font-weight: bold;
+  color: #fff;
+}
+
+.select-text {
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 5px 15px;
+  border-radius: 20px;
+  margin-top: 10px;
+}
+.call-req {
+  font-size: 0.7rem;
+  font-style: italic;
+  background: transparent;
+  padding: 0;
+}
+
+.plan-card.selected .plan-front {
+  border-color: var(--primary-btn);
+  box-shadow: 0 0 0 4px rgba(127, 156, 245, 0.3);
+}
+
+/* ==========================================================
+   TIPOGRAFÍA E INPUTS
+   ========================================================== */
+.question-header h2 {
+  font-size: 1.6rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-bottom: 0.5rem;
+}
+.question-header p {
+  font-size: 0.95rem;
+  color: var(--text-light);
+}
+
+.input-wrapper {
+  margin-bottom: 1.8rem;
+  width: 100%;
+}
+.input-wrapper label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-light);
+  margin-bottom: 0.5rem;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+  padding: 0.5rem 0;
+  font-size: 1.2rem;
+  color: var(--text-dark);
+  outline: none;
+  transition: border-color 0.3s ease;
+}
+textarea {
+  resize: none;
+  font-size: 1.1rem;
+}
+input::placeholder,
+textarea::placeholder {
+  color: rgba(0, 0, 0, 0.25);
+  font-weight: 300;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-bottom-color: var(--primary-btn);
+}
+
+.input-error {
+  border-bottom-color: var(--error-color) !important;
+  animation: shake 0.4s ease-in-out;
+}
+.plans-container.input-error {
+  animation: shake 0.4s ease-in-out;
+}
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-6px);
+  }
+  75% {
+    transform: translateX(6px);
+  }
+}
+
+.btn-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.5rem;
+}
+button {
+  font-family: "Poppins", sans-serif;
+  font-size: 1.1rem;
+  font-weight: 500;
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.next-btn,
+#submitBtn {
+  background-color: var(--primary-btn);
+  color: white;
+  padding: 0.8rem 2.5rem;
+  box-shadow: 0 10px 20px rgba(127, 156, 245, 0.3);
+}
+.next-btn:hover,
+#submitBtn:hover {
+  background-color: var(--primary-btn-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 25px rgba(127, 156, 245, 0.4);
+}
+.prev-btn {
+  background: transparent;
+  color: var(--text-light);
+  padding: 0.8rem 1rem;
+}
+.prev-btn:hover {
+  color: var(--text-dark);
+}
+
+/* ==========================================================
+   BARRA DE PROGRESO Y ÉXITO
+   ========================================================== */
+.progress-container {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.progress-bar {
+  height: 100%;
+  width: 12.5%;
+  background: var(--primary-btn);
+  border-radius: 10px;
+  transition: width 0.4s ease;
+}
+
+.success-screen {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  z-index: 200;
+}
+.success-screen.active {
+  display: flex;
+}
+.success-content {
+  background: var(--card-bg);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  padding: 4rem 3rem;
+  border-radius: 30px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+  transform: scale(0.8);
+  opacity: 0;
+  animation: popIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+.success-content h1 {
+  font-size: 2.2rem;
+  color: var(--text-dark);
+  margin-bottom: 0.5rem;
+}
+.success-content p {
+  font-size: 1.1rem;
+  color: var(--text-light);
+}
+.success-emoji {
+  font-size: 5rem;
+  display: block;
+  margin-bottom: 1rem;
+  animation: floatEmoji 3s ease-in-out infinite;
+}
+@keyframes popIn {
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes floatEmoji {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+}
+
+/* ==========================================================
+   DISEÑO MÓVIL ESTRICTO (El arreglo final)
+   ========================================================== */
+@media (max-width: 768px) {
+  .agency-logo {
+    top: 15px;
+    left: 20px;
+    font-size: 0.9rem;
+  }
+  .agency-logo svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .step {
+    width: 95%;
+    padding: 1.5rem 1rem;
+    max-height: 85vh;
+    /* Aseguramos que la ventana blanca tenga espacio para crecer si hay mucho contenido */
+    display: flex;
+    flex-direction: column;
+  }
+
+  .question-header {
+    margin-bottom: 1rem;
+    flex-shrink: 0;
+  }
+  .question-header h2 {
+    font-size: 1.15rem;
+    margin-bottom: 0.2rem;
+  }
+  .question-header p {
+    font-size: 0.85rem;
+  }
+
+  /* El contenedor de las tarjetas */
+  .plans-container {
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 1rem;
+    flex-shrink: 0;
+  }
+
+  .plan-card {
+    /* ESTO ES LA MAGIA: Prohíbe terminantemente que se encojan las tarjetas */
+    flex: 0 0 auto;
+    width: 100%;
+    height: 155px; /* Altura fija para que la tarjeta de vuelta sin romperse */
+  }
+
+  .plan-front {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+  }
+
+  .plan-front h3 {
+    font-size: 1.2rem;
+    margin-bottom: 0;
+  }
+  .plan-front .price {
+    font-size: 1.5rem;
+  }
+
+  .plan-back {
+    padding: 1rem;
+  }
+  .plan-back ul {
+    font-size: 0.75rem;
+    line-height: 1.3;
+  }
+  .plan-back li {
+    margin-bottom: 4px;
+    padding-left: 14px;
+  }
+
+  .select-text {
+    font-size: 0.7rem;
+    padding: 4px 10px;
+    margin-top: 5px;
+  }
+
+  /* Forzar que los botones bajen */
+  .btn-group {
+    margin-top: 1rem;
+    flex-shrink: 0;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 1rem;
+    padding: 0.4rem 0;
+  }
+  button {
+    padding: 0.6rem 1.5rem;
+    font-size: 0.95rem;
+  }
+}
+
+/* ==========================================================
+   ESTILOS PARA RADIO BUTTONS Y REDES SOCIALES (PASO 7)
+   ========================================================== */
+.radio-group {
+  display: flex;
+  gap: 25px;
+  margin-top: 10px;
+  margin-bottom: 5px;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 1.1rem !important;
+  color: var(--text-dark) !important;
+}
+
+.radio-label input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--primary-btn);
+}
+
+.social-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ==========================================================
+   DISEÑO DEL NÚMERO TELEFÓNICO NATIVO
+   ========================================================== */
+.phone-group {
+  display: flex;
+  gap: 15px;
+  align-items: flex-end;
+}
+
+.phone-group select {
+  width: 35%;
+  padding: 0.5rem 0.2rem;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.phone-group input {
+  width: 65%;
+}
+
+/* Ajuste fino para celulares */
+@media (max-width: 768px) {
+  .phone-group {
+    gap: 10px;
+  }
+  .phone-group select {
+    width: 42%;
+    font-size: 1rem;
+  }
+  .phone-group input {
+    width: 58%;
+  }
+}
