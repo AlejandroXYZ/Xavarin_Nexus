@@ -26,7 +26,7 @@ services:
     env_file:
       - .env
 
-    command: odoo -c /etc/odoo/odoo.conf --db-filter="^%h$$" --no-database-list
+    command: odoo -d aliexpress-9f682 --no-database-list
 
   adminer:
     image: adminer

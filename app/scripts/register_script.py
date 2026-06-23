@@ -5,6 +5,7 @@ from app.scripts.register_payloads.payload_admin_completed import (
     payload_admin_completed_dict,
 )
 from app.scripts.register_payloads.payload_form_data import payload_form_completed_dict
+import os
 
 
 logging.basicConfig(
@@ -12,7 +13,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-base_url = "http://localhost:8000"
+base_url = os.getenv("URL_API_BASE", "http://localhost:8000")
 
 
 async def registrar_inquilino():
