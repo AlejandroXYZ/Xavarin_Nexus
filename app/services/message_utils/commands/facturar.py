@@ -279,9 +279,9 @@ async def _garantizar_enlace_publico(run_odoo, factura_id: int, tenant_db: str) 
         token = str(uuid.uuid4())
         await run_odoo("account.move", "write", [[factura_id], {"access_token": token}])
 
-    public_base_url = os.getenv(
-        "ODOO_URL_PUBLIC", f"http://{tenant_db}.127.0.0.1.nip.io:8069"
-    )
+    public_base_url = os.getenv("DOMAIN_NAME", "hola.com")
+
+    public_base_url = f"https://{tenant_db}.{public_base_url}"
     return (
         f"{public_base_url.rstrip('/')}/my/invoices/{factura_id}?access_token={token}"
     )
