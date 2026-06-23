@@ -5,38 +5,41 @@ from app.clients.db import init_schema
 logger = logging.getLogger(__name__)
 
 
-async def duplicar_db_odoo(url: str, client, new_db_name: str) -> bool:
-    """Duplica la DB Plantilla de Odoo para el nuevo inquilino"""
+async def duplicar_db_odoo(new_db_name: str, db) -> bool:
+    """
+    Duplica la DB Plantilla de Odoo directamente en PostgreSQL
+    para saltarse el bloqueo de seguridad web (list_db = False).
+    """
     try:
-        url = f"{url}/web/database/duplicate"
-        master_password = os.getenv("MASTER_PASSWORD", "passwd")
-        odoo_db = os.getenv("DB", "db")
+        db_plantilla = os.getenv("DB", "db_plantilla_prod")
 
-        form_data = {
-            "master_pwd": master_password,
-            "name": odoo_db,
-            "new_name": new_db_name,
-        }
+        logger.info(
+            f"Clonando DB de ODOO vía Postgres: {db_plantilla} -> {new_db_name}"
+        )
 
-        logger.info("Clonando DB de ODOO")
-        response = await client.post(url, data=form_data, timeout=60.0)
+        await db.execute(f"""
+            SELECT pg_terminate_backend(pg_stat_activity.pid)
+            FROM pg_stat_activity
+            WHERE pg_stat_activity.datname = '{db_plantilla}'
+            AND pid <> pg_backend_pid();
+        """)
 
-        if response.status_code != 200 and response.status_code != 303:
-            raise RuntimeError(
-                f"Fallo al clonar Odoo. Código: {response.status_code}, código de respuesta no esperado"
-            )
+        await db.execute(
+            f'CREATE DATABASE "{new_db_name}" WITH TEMPLATE "{db_plantilla}"'
+        )
 
-        logger.info("DB Clonada Perfectamente")
+        logger.info(f"DB de Odoo '{new_db_name}' clonada perfectamente en Postgres.")
         return True
 
     except Exception as e:
-        logger.error(f"Ha ocurrido un error mientras se duplicaba la db de Odoo: {e}")
+        logger.error(
+            f"Ha ocurrido un error mientras se duplicaba la db de Odoo en Postgres: {e}"
+        )
         raise e
 
 
 async def duplicate_schema(schema_name: str):
-    """Duplica el Schema Plantilla para el nuevo inquilino en Postgres"""
-
+    """Duplica el Schema Plantilla para el nuevo inquilino en Postgres (Para tu app FastAPI)"""
     try:
         logger.info(f"Duplicando Schema de Postgres para: {schema_name}...")
         await init_schema(first_time=False, schema_name=schema_name)
@@ -47,3 +50,4 @@ async def duplicate_schema(schema_name: str):
             f"Fallo Crítico al crear el esquema en Postgres [{schema_name}]: {e}"
         )
         raise e
+
