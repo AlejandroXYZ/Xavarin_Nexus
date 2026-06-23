@@ -1,16 +1,24 @@
 import logging
 import os
 from app.clients.db import init_schema
+import asyncpg
 
 logger = logging.getLogger(__name__)
 
 
-async def duplicar_db_odoo(new_db_name: str, db) -> bool:
+async def duplicar_db_odoo(new_db_name: str) -> bool:
     """
     Duplica la DB Plantilla de Odoo directamente en PostgreSQL
     para saltarse el bloqueo de seguridad web (list_db = False).
     """
+    db = None
     try:
+        user = os.getenv("POSTGRES_USER", "odoo")
+        password = os.getenv("POSTGRES_PASSWORD", "123")
+        db = new_db_name
+        host = os.getenv("HOST", "db")
+        db = await asyncpg.connect(user=user, password=password, host=host, database=db)
+
         db_plantilla = os.getenv("DB", "db_plantilla_prod")
 
         logger.info(
@@ -29,12 +37,14 @@ async def duplicar_db_odoo(new_db_name: str, db) -> bool:
         )
 
         logger.info(f"DB de Odoo '{new_db_name}' clonada perfectamente en Postgres.")
+        await db.close()
         return True
 
     except Exception as e:
         logger.error(
             f"Ha ocurrido un error mientras se duplicaba la db de Odoo en Postgres: {e}"
         )
+        await db.close()
         raise e
 
 
@@ -50,4 +60,3 @@ async def duplicate_schema(schema_name: str):
             f"Fallo Crítico al crear el esquema en Postgres [{schema_name}]: {e}"
         )
         raise e
-
