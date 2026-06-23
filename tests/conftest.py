@@ -26,7 +26,7 @@ siguiente_mes = fecha_actual + timedelta(days=30)
 baseurl = RAIZ / "app" / "sql"
 
 user = os.getenv("NEW_USER_DB", "postgres")
-host = "localhost"
+host = os.getenv("HOST", "db")
 password = os.getenv("NEW_PASSWORD_DB", "mi_db")
 database = os.getenv("NEW_DB", "mi_db")
 
