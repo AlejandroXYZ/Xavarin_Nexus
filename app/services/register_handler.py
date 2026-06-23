@@ -92,7 +92,7 @@ async def create_tenant(redis, db, llave_sesion: str, data: FormAdmin, client):
         logger.info(f"ID de usuario {usuario_admin} es {uid}")
         logger.info(f"Duplicando plantilla hacia: {new_name}")
 
-        await duplicar_db_odoo(new_db_name=new_name, db=db)
+        await duplicar_db_odoo(new_db_name=new_name)
         odoo_db_creada = True
 
         bot_user = await generar_api_key_bot(
