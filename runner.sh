@@ -41,6 +41,7 @@ config.set('options', 'dbfilter', '^%d$')
 with open('/etc/odoo/odoo.conf', 'w') as f:
     config.write(f)
 "
+docker compose exec -T odoo chown odoo:odoo /etc/odoo/odoo.conf
 
 docker compose restart odoo
 echo "Contraseña maestra inyectada y Odoo reiniciado."
