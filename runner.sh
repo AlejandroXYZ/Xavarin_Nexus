@@ -36,6 +36,8 @@ config.set('options', 'proxy_mode', '$estado')
 
 config.set('options', 'list_db', 'False')
 
+config.set('options', 'dbfilter', '^%d$')
+
 with open('/etc/odoo/odoo.conf', 'w') as f:
     config.write(f)
 "
