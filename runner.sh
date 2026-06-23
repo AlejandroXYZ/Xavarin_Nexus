@@ -34,6 +34,8 @@ config.set('options', 'admin_passwd', '${MASTER_PASSWORD}')
 # En producción DEBE ser True. En local puede ser False porque no hay proxy.
 config.set('options', 'proxy_mode', '$estado')
 
+config.set('options', 'list_db', 'False')
+
 with open('/etc/odoo/odoo.conf', 'w') as f:
     config.write(f)
 "
