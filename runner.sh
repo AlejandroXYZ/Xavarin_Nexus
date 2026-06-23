@@ -21,7 +21,7 @@ echo "Configurando la Contraseña Maestra y Proxy en Odoo..."
 
 docker compose exec -T odoo python3 -c "
 import configparser
-config = configparser.ConfigParser()
+config = configparser.ConfigParser(interpolation=None)
 # Leemos el archivo actual (si está vacío, Python lo maneja sin error)
 config.read('/etc/odoo/odoo.conf')
 
