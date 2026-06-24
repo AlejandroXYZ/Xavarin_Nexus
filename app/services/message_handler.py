@@ -389,7 +389,7 @@ async def message_handler_func(
             await Translator.enviar(
                 plataforma=message.platform,
                 destinatario=message.platform_user_id,
-                texto=message.content,
+                texto=respuesta_para_cliente,
                 token=datos["tokens_platforms"][message.platform],
             )
 
