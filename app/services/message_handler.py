@@ -388,12 +388,14 @@ async def message_handler_func(
 
             logger.info("Respondiendo mensaje al cliente")
             logger.info(f"Tokens_platforms: {datos['tokens_platforms']}")
-            await Translator.enviar(
-                plataforma=message.platform,
-                destinatario=message.platform_user_id,
-                texto=respuesta_para_cliente,
-                token=datos["tokens_platforms"][message.platform],
-            )
+
+            if validacion.intent != "another" or validacion.intent != "buy":
+                await Translator.enviar(
+                    plataforma=message.platform,
+                    destinatario=message.platform_user_id,
+                    texto=respuesta_para_cliente,
+                    token=datos["tokens_platforms"][message.platform],
+                )
 
             return result
 
