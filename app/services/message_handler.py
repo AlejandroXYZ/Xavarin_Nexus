@@ -116,7 +116,7 @@ async def message_handler_func(
         if not datos_redis:
             logger.error("Error obteniendo caché del inquilino")
             return
-    datos = json.loads(datos_redis)
+    datos: dict = json.loads(datos_redis)
     logger.info(datos)
     if platform not in datos["tokens_platforms"]:
         logger.info(
@@ -125,7 +125,7 @@ async def message_handler_func(
         return {"status": "error", "info": "plataforma del inquilino no disponible"}
 
     prompt = datos["ai_system_prompt"]
-    message = Translator.traducir(plataforma=platform.strip(), payload=message)
+    message: Message = Translator.traducir(plataforma=platform.strip(), payload=message)
     if message is None:
         return {"status": "ignored", "info": "Evento de sistema o estado"}
 
@@ -380,6 +380,14 @@ async def message_handler_func(
                 schema_name=tenant_db,
                 key_redis=llave_historial_cliente,
                 channel_id=channel_id,
+            )
+
+            logger.info("Respondiendo mensaje al cliente")
+            await Translator.enviar(
+                plataforma=message.plataform,
+                destinatario=message.platform_user_id,
+                texto=message.content,
+                token=datos["tokens_platforms"][platform],
             )
 
             return result
