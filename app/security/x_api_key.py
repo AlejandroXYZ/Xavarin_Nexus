@@ -4,7 +4,7 @@ from fastapi import Security, HTTPException, status
 
 
 api_key_headers = os.getenv("API_KEY_HEADERS", "api")
-x_api_key = APIKeyHeader(name="X-API-KEY", auto_error=False)
+x_api_key = APIKeyHeader(name="secret_token", auto_error=False)
 
 
 async def verificar_api(api_recibida: str = Security(x_api_key)):

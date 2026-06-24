@@ -117,6 +117,8 @@ async def message_handler_func(
             logger.error("Error obteniendo caché del inquilino")
             return
     datos: dict = json.loads(datos_redis)
+    if isinstance(datos.get("tokens_platforms"), str):
+        datos["tokens_platforms"] = json.loads(datos["tokens_platforms"])
     logger.info(datos)
     if platform not in datos["tokens_platforms"]:
         logger.info(
@@ -383,11 +385,12 @@ async def message_handler_func(
             )
 
             logger.info("Respondiendo mensaje al cliente")
+            logger.info(f"Tokens_platforms: {datos['tokens_platforms']}")
             await Translator.enviar(
-                plataforma=message.plataform,
+                plataforma=message.platform,
                 destinatario=message.platform_user_id,
                 texto=message.content,
-                token=datos["tokens_platforms"][platform],
+                token=datos["tokens_platforms"][message.platform],
             )
 
             return result
