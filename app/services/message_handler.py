@@ -14,7 +14,6 @@ from app.services.message_utils.cache_client import get_cache_client
 from app.services.message_utils.html_format import format_html, limpiar_html
 from app.security.errors_catcher import manual_handling, message_pending_try
 from app.services.message_utils.commands.facturar import procesar_factura
-import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +33,8 @@ async def response_to_client_handler(
             logger.error("Error obteniendo caché del inquilino")
             return
     datos = json.loads(datos_redis)
+    if isinstance(datos, dict):
+        datos["tokens_platforms"] = json.loads(datos["tokens_platforms"])
 
     logger.info(f"webhook recibido para el tenant: {tenant_db}")
     logger.info(f"payload recibido: {payload}")
@@ -94,6 +95,7 @@ async def response_to_client_handler(
             plataforma=client["platform"],
             destinatario=client["platform_user_id"],
             texto=payload.body,
+            token=datos["tokens_platforms"][client["platform"]],
         )
         logger.info("Mensaje Enviado Correctamente")
 
