@@ -1,6 +1,5 @@
 from app.schemas.translators_schemas.telegram import TelegramUpdate
 from app.schemas.message import Message
-import os
 import httpx
 
 
@@ -32,10 +31,8 @@ def telegram_translator(payload: dict):
     )
 
 
-async def send_message_telegram(destinatario: str, texto: str):
+async def send_message_telegram(destinatario: str, texto: str, token: str):
     """Traduce el texto al payload de Telegram y lo envía."""
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
-
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {"chat_id": destinatario, "text": texto}
 

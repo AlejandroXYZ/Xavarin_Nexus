@@ -26,7 +26,7 @@ class Translator:
         return traductor_func(payload)
 
     @classmethod
-    async def enviar(cls, plataforma: str, destinatario: str, texto: str):
+    async def enviar(cls, plataforma: str, destinatario: str, texto: str, token: str):
         """Busca la plataforma y ejecuta su función de envío (SALIDA)."""
         plataforma_upper = plataforma.upper()
         enviar_func = REGISTRO_SALIDA.get(plataforma_upper)
@@ -38,4 +38,4 @@ class Translator:
             )
 
         logger.info(f"Enviando mensaje vía {plataforma_upper} a {destinatario}")
-        await enviar_func(destinatario, texto)
+        await enviar_func(destinatario, texto, token)
