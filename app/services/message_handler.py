@@ -118,10 +118,12 @@ async def message_handler_func(
         if not datos_redis:
             logger.error("Error obteniendo caché del inquilino")
             return
+
     datos: dict = json.loads(datos_redis)
     if isinstance(datos.get("tokens_platforms"), str):
         datos["tokens_platforms"] = json.loads(datos["tokens_platforms"])
     logger.info(datos)
+
     if platform not in datos["tokens_platforms"]:
         logger.info(
             "Plataforma no válida, inquilino no tiene esa plataforma disponible"
@@ -137,6 +139,7 @@ async def message_handler_func(
         llave_historial_cliente = (
             f"history:client:{platform}:{message.platform_user_id}"
         )
+
         if not await redis.exists(llave_historial_cliente):
             await obtener_historial_cliente(
                 message=message,
@@ -145,29 +148,37 @@ async def message_handler_func(
                 schema_name=tenant_db,
                 redis_key=llave_historial_cliente,
             )
+
         logger.info("Obteniendo datos desde caché")
         historial_cache = await redis.get(llave_historial_cliente)
         logger.info(f"historial_cache: {historial_cache}")
+
         if not historial_cache:
             logger.error("Los datos de caché del cliente están vacíos")
+            return {"status": "error", "info": "Caché vacía"}
 
-        historial = json.loads(historial_cache)
+        # CORRECCIÓN 1: Extracción segura de la lista de mensajes
+        historial_raw = json.loads(historial_cache)
+        lista_mensajes = (
+            historial_raw.get("historial", [])
+            if isinstance(historial_raw, dict)
+            else historial_raw
+        )
+        if not isinstance(lista_mensajes, list):
+            lista_mensajes = []
+
         ia_is_active = True
-        if len(historial) > 0:
-            lista_mensajes = (
-                historial.get("historial", [])
-                if isinstance(historial, dict)
-                else historial
-            )
+        channel_id = None
 
-            if lista_mensajes and isinstance(lista_mensajes, list):
-                ia_is_active = lista_mensajes[-1].get("ia_is_active", True)
-            else:
-                ia_is_active = True
+        if lista_mensajes:
+            ia_is_active = lista_mensajes[-1].get("ia_is_active", True)
+            for msg in reversed(lista_mensajes):
+                if msg.get("channel_id"):
+                    channel_id = msg.get("channel_id")
+                    break
 
-        if not ia_is_active and historial[-1].get("channel_id", False):
-            logger.info("IA desactivada, mensaje directo al dueño")
-            channel_id = historial[-1].get("channel_id", False)
+        if not ia_is_active and channel_id:
+            logger.info("IA desactivada, mensaje directo al dueño en Odoo")
             await ejecutar_odoo(
                 http_client=odoo,
                 odoo_url=datos["odoo_url"],
@@ -186,30 +197,29 @@ async def message_handler_func(
             )
             return {"status": "success", "info": "Mensaje enviado a humano, IA pausada"}
 
-        logger.info(f"Contenido de historial: {historial}")
+        logger.info(f"Contenido de historial: {lista_mensajes}")
         historial_limpio = []
-        if len(historial) > 0:
-            historial_reciente = historial[-10:]
+        if lista_mensajes:
+            historial_reciente = lista_mensajes[-10:]
             historial_limpio = [
                 {"role": fila["role"], "content": fila["content"]}
                 for fila in historial_reciente
                 if "role" in fila and "content" in fila
             ]
+
         historial_limpio.append({"role": "user", "content": message.content})
         historial_limpio.insert(0, {"role": "system", "content": prompt})
-        channel_id = None
+
         respuesta_para_cliente = None
 
         if message.content == "multimedia":
             logger.info("Mensaje Multimedia enviando al dueño")
             validacion = IA_answer(
-                intent="another",
-                product="",
-                text="Mensaje Multimedia",
+                intent="another", product="", text="Mensaje Multimedia"
             )
         else:
             try:
-                if prompt == "" or not prompt:
+                if not prompt:
                     logger.error("No se pudo obtener el system prompt del inquilino")
                     await manual_handling(
                         message=message,
@@ -220,23 +230,20 @@ async def message_handler_func(
                     )
                     return {"status": "pending", "info": "Mensaje enviado al dueño"}
 
-                logger.info(
-                    f"===================={historial_limpio}========================"
-                )
-
+                logger.info(f"======== HISTORIAL A GROQ ========\n{historial_limpio}")
                 response = await groq(historial_limpio)
                 logger.info(f"respuesta de IA {response}")
                 validacion = IA_answer.model_validate(response)
             except Exception as e:
-                logger.error(
-                    f"Ha ocurrido un error mientras se enviaba el mensaje a la IA: {e}"
-                )
+                logger.error(f"Error enviando el mensaje a la IA: {e}")
                 return {
                     "status": "error",
                     "info": "Error al procesar el mensaje con la IA",
                 }
-            ia_is_now_active = True
-            respuesta_para_cliente = validacion.text
+
+        ia_is_now_active = True
+        respuesta_para_cliente = validacion.text
+
         try:
             match validacion.intent:
                 case "catalog":
@@ -250,7 +257,7 @@ async def message_handler_func(
                     respuesta = f"Respondido al Usuario {message.user_name}-ID:{message.platform_user_id} de {message.platform}: {validacion.text}"
                     logger.info(respuesta)
                     result = {
-                        "status": "sucess",
+                        "status": "success",
                         "intent": "answered",
                         "data": respuesta,
                     }
@@ -260,7 +267,6 @@ async def message_handler_func(
                     respuesta_cruda = await product_embedding(
                         db, validacion.product, message.content, tenant_db
                     )
-
                     if isinstance(respuesta_cruda, dict):
                         texto_extraido = respuesta_cruda.get(
                             "text", str(respuesta_cruda)
@@ -281,8 +287,8 @@ async def message_handler_func(
                         "data": texto_extraido,
                     }
                     respuesta_para_cliente = texto_extraido
+
                 case "buy" | "another":
-                    channel_id = historial[-1].get("channel_id") if historial else None
                     if not channel_id:
                         logger.info("Creando Canal de Venta en Odoo")
                         channel_id = await ejecutar_odoo(
@@ -303,10 +309,10 @@ async def message_handler_func(
                                 }
                             ],
                         )
-                        message.channel_id = channel_id
                     else:
                         logger.info(f"Reutilizando canal existente: {channel_id}")
 
+                    message.channel_id = channel_id
                     ia_is_now_active = False
                     message.ia_is_active = ia_is_now_active
 
@@ -315,6 +321,7 @@ async def message_handler_func(
                         if validacion.intent == "another"
                         else "waiting_for_sale"
                     )
+
                     await register_client_db(
                         db=db,
                         mensaje=message,
@@ -326,8 +333,7 @@ async def message_handler_func(
                     )
 
                     transcripcion_html = format_html(historial_limpio)
-                    logger.info("Inyectando conversacion")
-
+                    logger.info("Inyectando conversacion en Odoo")
                     await ejecutar_odoo(
                         http_client=odoo,
                         odoo_url=datos["odoo_url"],
@@ -344,19 +350,17 @@ async def message_handler_func(
                             "body_is_html": True,
                         },
                     )
-                    logger.info("conversacion Inyectada")
 
                     result = {
-                        "status": "sucess",
+                        "status": "success",
                         "intent": validacion.intent,
                         "data": "Mensaje enviado al dueño",
                     }
-
                     respuesta_para_cliente = validacion.text
 
                 case _:
                     logger.error(
-                        f"Mensaje no Válido, error extrayendo intent, mensaje: {message}, intent: {validacion} "
+                        f"Intent no Válido. Mensaje: {message}, intent: {validacion}"
                     )
                     return {"status": "Error"}
 
@@ -382,6 +386,7 @@ async def message_handler_func(
                     type="message",
                     role="assistant",
                     ia_is_active=ia_is_now_active,
+                    channel_id=channel_id,
                     metadata="{}",
                 )
                 mensajes_a_guardar.append(response_to_message)
@@ -394,8 +399,7 @@ async def message_handler_func(
                 key_redis=llave_historial_cliente,
                 channel_id=channel_id,
             )
-
-            if ia_is_now_active:
+            if respuesta_para_cliente:
                 logger.info("Respondiendo mensaje al cliente")
                 await Translator.enviar(
                     plataforma=message.platform,
