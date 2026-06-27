@@ -21,26 +21,34 @@ async def procesar_factura(
     """Descuenta del inventario y genera factura para enviarsela al cliente"""
 
     try:
-        logger.info("Extrayendo historial de mensajes")
+        logger.info("Extrayendo historial de mensajes en orden cronológico")
         mensajes = await db.fetch(
             f"""
-        SELECT role,content FROM "{tenant_db}".messages WHERE platform_user_id = $1 AND platform = $2 AND role != 'system' ORDER BY created_at ASC; 
-        """,
+            SELECT role, content 
+            FROM "{tenant_db}".messages 
+            WHERE platform_user_id = $1 AND platform = $2 AND role != 'system' 
+            ORDER BY created_at ASC; 
+            """,
             platform_user_id,
             platform,
         )
+
         partner_id = await db.fetchval(
             f"""SELECT partner_id FROM "{tenant_db}".clients WHERE platform_user_id = $1 AND platform = $2;  """,
             platform_user_id,
             platform,
         )
 
+        prompt = tenant_cache_data["ai_system_prompt"]
         mensajes = [dict(fila) for fila in mensajes]
+
         logger.info("Inyectando System Prompt")
-        mensajes.insert(0, prompt)
+        mensajes.insert(0, {"role": "system", "content": prompt})
+
         logger.info(f"Enviando historial a Groq: {mensajes}")
         respuesta = await groq(mensajes)
         productos = respuesta.get("items", [])
+
         if not productos:
             return []
 
@@ -55,6 +63,50 @@ async def procesar_factura(
             tenant_db=tenant_db,
             partner_id=partner_id,
         )
+
+        # --- NUEVA LÓGICA: MANEJO DE FALTA DE STOCK ---
+        if (
+            isinstance(facturacion, dict)
+            and facturacion.get("status") == "out_of_stock"
+        ):
+            logger.warning("Venta detenida: No hay stock en Odoo. Avisando al dueño...")
+
+            # Buscamos el canal de Odoo donde está hablando este cliente
+            channel_id = await db.fetchval(
+                f"""
+                SELECT channel_id 
+                FROM "{tenant_db}".messages 
+                WHERE platform_user_id = $1 AND platform = $2 AND channel_id IS NOT NULL 
+                ORDER BY created_at DESC LIMIT 1;
+                """,
+                platform_user_id,
+                platform,
+            )
+
+            if channel_id:
+                alerta_html = (
+                    "<b>ALERTA DE VENTA FALLIDA:</b><br/>"
+                    "<b>Motivo:</b> Ya no queda ese producto en el inventario"
+                )
+                await ejecutar_odoo(
+                    http_client=http_client,
+                    odoo_url=tenant_cache_data["odoo_url"],
+                    db=tenant_db,
+                    uid=tenant_cache_data["odoo_bot_user"],
+                    api_key=tenant_cache_data["odoo_bot_api_key"],
+                    modelo="discuss.channel",
+                    metodo="message_post",
+                    args=[channel_id],
+                    kwargs={
+                        "body": alerta_html,
+                        "message_type": "comment",
+                        "subtype_xmlid": "mail.mt_comment",
+                        "body_is_html": True,
+                    },
+                )
+            return {"status": "out_of_stock", "info": "Alerta enviada al dueño"}
+        # ----------------------------------------------
+
         if facturacion and "error" not in str(facturacion).lower():
             logger.info(
                 "Venta exitosa en Odoo. Descontando stock en base de datos local..."
@@ -74,6 +126,7 @@ async def procesar_factura(
             logger.info("Stock local actualizado correctamente.")
 
         return facturacion
+
     except Exception as e:
         logger.error(f"Ha ocurrido un error procesando el comando facturar, {e}")
         return {"status": "error", "info": "error procesando el comando /facturar"}
@@ -330,5 +383,16 @@ async def procesar_venta_completa(
         }
 
     except Exception as e:
-        logger.error(f"Fallo crítico generando la venta en Odoo: {e}")
+        error_texto = str(e)
+        logger.error(f"Fallo generando la venta en Odoo: {error_texto}")
+
+        if (
+            "No se puede crear una factura" in error_texto
+            or "artículos disponibles" in error_texto
+        ):
+            return {
+                "status": "out_of_stock",
+                "info": "Sin stock en Odoo para facturar.",
+            }
+
         raise e
