@@ -21,7 +21,8 @@ async def procesar_factura(
     """Descuenta del inventario y genera factura para enviarsela al cliente"""
 
     try:
-        logger.info("Extrayendo historial de mensajes en orden cronológico")
+        logger.info("Extrayendo historial de mensajes")
+        # El ORDER BY cronológico es vital
         mensajes = await db.fetch(
             f"""
             SELECT role, content 
@@ -39,11 +40,18 @@ async def procesar_factura(
             platform,
         )
 
-        prompt = tenant_cache_data["ai_system_prompt"]
         mensajes = [dict(fila) for fila in mensajes]
-
         logger.info("Inyectando System Prompt")
-        mensajes.insert(0, {"role": "system", "content": prompt})
+
+        # AQUÍ ESTÁ LA CORRECCIÓN: Tu prompt original de extracción
+        prompt_extractor = (
+            "Analiza la siguiente conversación entre un cliente y un vendedor. El vendedor acaba de ordenar facturar. "
+            "Tu tarea es extraer EXCLUSIVAMENTE los productos que el cliente acordó comprar con su nombre exacto y su cantidad. "
+            "Devuelve únicamente un JSON con esta estructura:\n"
+            '{"items": [{"nombre_producto": "...", "cantidad": X},{"nombre_producto":"...", "cantidad": X}]}. '
+            "Si no hay acuerdo claro, devuelve la lista vacía, cantidad es un numero entero."
+        )
+        mensajes.insert(0, {"role": "system", "content": prompt_extractor})
 
         logger.info(f"Enviando historial a Groq: {mensajes}")
         respuesta = await groq(mensajes)
@@ -64,14 +72,12 @@ async def procesar_factura(
             partner_id=partner_id,
         )
 
-        # --- NUEVA LÓGICA: MANEJO DE FALTA DE STOCK ---
+        # LÓGICA RECUPERADA: Alerta al dueño si Odoo bloquea por falta de stock
         if (
             isinstance(facturacion, dict)
             and facturacion.get("status") == "out_of_stock"
         ):
             logger.warning("Venta detenida: No hay stock en Odoo. Avisando al dueño...")
-
-            # Buscamos el canal de Odoo donde está hablando este cliente
             channel_id = await db.fetchval(
                 f"""
                 SELECT channel_id 
@@ -85,8 +91,9 @@ async def procesar_factura(
 
             if channel_id:
                 alerta_html = (
-                    "<b>ALERTA DE VENTA FALLIDA:</b><br/>"
-                    "<b>Motivo:</b> Ya no queda ese producto en el inventario"
+                    "⚠️ <b>ALERTA DE VENTA FALLIDA:</b><br/>"
+                    "El cliente intentó comprar, pero Odoo bloqueó la facturación.<br/>"
+                    "<b>Motivo:</b> No hay stock disponible en el inventario o la política del producto exige entrega previa."
                 )
                 await ejecutar_odoo(
                     http_client=http_client,
@@ -105,23 +112,19 @@ async def procesar_factura(
                     },
                 )
             return {"status": "out_of_stock", "info": "Alerta enviada al dueño"}
-        # ----------------------------------------------
 
         if facturacion and "error" not in str(facturacion).lower():
             logger.info(
                 "Venta exitosa en Odoo. Descontando stock en base de datos local..."
             )
-
             valores_actualizacion = [
                 (item["cantidad"], item["id_odoo"]) for item in productos_encontrados
             ]
-
             query_descuento = f"""
                 UPDATE "{tenant_db}".catalog 
                 SET stock = GREATEST(stock - $1, 0)
                 WHERE id_odoo = $2;
             """
-
             await db.executemany(query_descuento, valores_actualizacion)
             logger.info("Stock local actualizado correctamente.")
 
