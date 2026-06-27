@@ -381,7 +381,7 @@ async def message_handler_func(
                     created_at=datetime.now(),
                     type="message",
                     role="assistant",
-                    ia_is_active=ia_is_active,
+                    ia_is_active=ia_is_now_active,
                     metadata="{}",
                 )
                 mensajes_a_guardar.append(response_to_message)
@@ -395,10 +395,8 @@ async def message_handler_func(
                 channel_id=channel_id,
             )
 
-            logger.info("Respondiendo mensaje al cliente")
-            logger.info(f"Tokens_platforms: {datos['tokens_platforms']}")
-
-            if ia_is_active:
+            if ia_is_now_active:
+                logger.info("Respondiendo mensaje al cliente")
                 await Translator.enviar(
                     plataforma=message.platform,
                     destinatario=message.platform_user_id,
