@@ -154,7 +154,9 @@ async def message_handler_func(
         historial = json.loads(historial_cache)
         ia_is_active = True
         if len(historial) > 0:
-            ia_is_active = historial[-1].get("ia_is_active", True)
+            ia_is_active = (
+                historial[-1].get("ia_is_active", True) if historial else True
+            )
 
         if not ia_is_active and historial[-1].get("channel_id", False):
             logger.info("IA desactivada, mensaje directo al dueño")
