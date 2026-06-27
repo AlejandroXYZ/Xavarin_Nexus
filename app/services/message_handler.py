@@ -154,7 +154,7 @@ async def message_handler_func(
         historial = json.loads(historial_cache)
         ia_is_active = True
         if len(historial) > 0:
-            ia_is_active = historial[0].get("ia_is_active", True)
+            ia_is_active = historial[-1].get("ia_is_active", True)
 
         if not ia_is_active and historial[-1].get("channel_id", False):
             logger.info("IA desactivada, mensaje directo al dueño")
@@ -372,7 +372,7 @@ async def message_handler_func(
                     created_at=datetime.now(),
                     type="message",
                     role="assistant",
-                    ia_is_active=ia_is_now_active,
+                    ia_is_active=ia_is_active,
                     metadata="{}",
                 )
                 mensajes_a_guardar.append(response_to_message)
@@ -389,7 +389,7 @@ async def message_handler_func(
             logger.info("Respondiendo mensaje al cliente")
             logger.info(f"Tokens_platforms: {datos['tokens_platforms']}")
 
-            if validacion.intent != "another" or validacion.intent != "buy":
+            if ia_is_active:
                 await Translator.enviar(
                     plataforma=message.platform,
                     destinatario=message.platform_user_id,
