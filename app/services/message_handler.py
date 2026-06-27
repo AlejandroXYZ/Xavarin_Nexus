@@ -356,7 +356,7 @@ async def message_handler_func(
                         "intent": validacion.intent,
                         "data": "Mensaje enviado al dueño",
                     }
-                    respuesta_para_cliente = validacion.text
+                    respuesta_para_cliente = None
 
                 case _:
                     logger.error(

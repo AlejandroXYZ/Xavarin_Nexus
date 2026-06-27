@@ -4,7 +4,7 @@ from app.services.message_utils.commands.prompt_factura import prompt
 from app.clients.odoo_jsonrpc import ejecutar_odoo
 import uuid
 import os
-from typing import List, Dict
+from typing import List, Dict, Any
 
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ async def procesar_factura(
         logger.info("Extrayendo historial de mensajes")
         mensajes = await db.fetch(
             f"""
-        SELECT role,content FROM "{tenant_db}".messages WHERE platform_user_id = $1 AND platform = $2 AND role != 'system' ;
+        SELECT role,content FROM "{tenant_db}".messages WHERE platform_user_id = $1 AND platform = $2 AND role != 'system' ORDER BY created_at ASC; 
         """,
             platform_user_id,
             platform,
