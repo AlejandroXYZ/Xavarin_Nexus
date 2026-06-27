@@ -23,7 +23,7 @@ def vector(text: str | Iterable[str]):
 async def product_embedding(db, product: str, message: str, tenant: str) -> str:
     """Encuentra 3 productos comparando el mensaje del cliente con los embeddings de los productos en el catálogo"""
     try:
-        texto_a_buscar = product if product and len(product) > 2 else message
+        texto_a_buscar = product if product and len(product) >= 2 else message
         vector_cliente_lista = model.embed(texto_a_buscar)
         vector_ndarray = next(vector_cliente_lista)
 
@@ -50,7 +50,7 @@ async def product_embedding(db, product: str, message: str, tenant: str) -> str:
         logger.info(productos)
         respuesta = ""
 
-        if len(productos) == 0:
+        if len(productos) == 0 and not product:
             respuesta = "No se encontró ningún producto"
         else:
             for i in productos:
