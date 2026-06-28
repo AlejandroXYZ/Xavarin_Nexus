@@ -13,8 +13,6 @@ from app.services.register_utils.update_webhook_odoo import actualizar_webhook_o
 import json
 from unidecode import unidecode
 from app.services.register_utils.set_webhook_telegram import set_webhook_telegram_bot
-import asyncio
-
 
 logger = logging.getLogger(__name__)
 
@@ -68,18 +66,22 @@ async def create_tenant(redis, db, llave_sesion: str, data: FormAdmin, client):
     if not await redis.exists(llave_sesion):
         logger.error("Intento de acceso con token expirado o invalido")
         raise ValueError("Error, enlace expirado")
+
     datos_recopilados_admin = json.loads(await redis.get(llave_sesion))
     datos_recopilados_inquilino = data.model_dump()
     datos_completos = datos_recopilados_inquilino | datos_recopilados_admin
     datos_registro = RegisterData(**datos_completos)
+
     logger.info("Eliminando Llave de Sesion en Redis")
     await redis.delete(llave_sesion)
+
     url = os.getenv("ODOO_URL_BASE", "http://odoo.com")
     logger.warning(f"INTENTO DE CONEXIÓN - URL de Odoo: '{url}'")
     db_name = os.getenv("DB", "db")
 
     if datos_registro.odoo_url is not None:
         url = datos_registro.odoo_url
+
     new_name = generar_nombre_esquema(datos_registro.name)
     odoo_db_creada = False
 
@@ -152,11 +154,21 @@ async def create_tenant(redis, db, llave_sesion: str, data: FormAdmin, client):
 
                 if datos_registro.payment_plan != "basico":
                     logger.info("Configurando Bot de Telegram")
-                    token_telegram_string = json.loads(datos_registro.tokens_platforms)
-                    token_telegram = token_telegram_string["telegram"]
-                    await set_webhook_telegram_bot(
-                        tenant_db=new_name, token_telegram=token_telegram
-                    )
+
+                    plataformas = datos_registro.tokens_platforms
+                    if isinstance(plataformas, str):
+                        plataformas = json.loads(plataformas)
+
+                    token_telegram = plataformas.get("telegram")
+
+                    if token_telegram:
+                        await set_webhook_telegram_bot(
+                            tenant_db=new_name, token_telegram=token_telegram
+                        )
+                    else:
+                        logger.warning(
+                            "El inquilino no tiene un token de Telegram válido en sus credenciales."
+                        )
 
                 logger.info("Registrado inquilino perfectamente")
                 return {
@@ -168,7 +180,7 @@ async def create_tenant(redis, db, llave_sesion: str, data: FormAdmin, client):
     except Exception as e:
         logger.error(f"Error Critico durante el registro del nuevo Inquilino: {e}")
         if odoo_db_creada:
-            logger.warning(f" Borrando la DB '{new_name}' huérfana en Odoo...")
+            logger.warning(f"Borrando la DB '{new_name}' huérfana en Odoo...")
             try:
                 await eliminar_db_odoo(
                     http_client=client,
@@ -179,7 +191,8 @@ async def create_tenant(redis, db, llave_sesion: str, data: FormAdmin, client):
                 logger.info("Base de datos huérfana eliminada en Odoo.")
             except Exception as e_rollback:
                 logger.error(
-                    f"Falló el borrado manual en Odoo de {new_name}. Error: {e_rollback}"
+                    f"Falló el borrado manual en Odoo de {new_name}. Error: {e_rollback}. "
+                    "Revisa que tu variable MASTER_PASSWORD en el archivo .env coincida con admin_passwd de odoo.conf"
                 )
 
         raise ValueError(
