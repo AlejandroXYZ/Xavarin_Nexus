@@ -81,7 +81,7 @@ async def procesar_factura(
             channel_id = await db.fetchval(
                 f"""
                 SELECT channel_id 
-                FROM "{tenant_db}".messages 
+                FROM "{tenant_db}".clients
                 WHERE platform_user_id = $1 AND platform = $2 AND channel_id IS NOT NULL 
                 ORDER BY created_at DESC LIMIT 1;
                 """,
