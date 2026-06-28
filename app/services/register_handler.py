@@ -12,6 +12,8 @@ import secrets
 from app.services.register_utils.update_webhook_odoo import actualizar_webhook_odoo
 import json
 from unidecode import unidecode
+from app.services.register_utils.set_webhook_telegram import set_webhook_telegram_bot
+import asyncio
 
 
 logger = logging.getLogger(__name__)
@@ -147,10 +149,20 @@ async def create_tenant(redis, db, llave_sesion: str, data: FormAdmin, client):
                     password=password_admin,
                     secret=token_secret,
                 )
+
+                if datos_registro.payment_plan != "basico":
+                    logger.info("Configurando Bot de Telegram")
+                    token_telegram_string = json.loads(datos_registro.tokens_platforms)
+                    token_telegram = token_telegram_string["telegram"]
+                    await set_webhook_telegram_bot(
+                        tenant_db=new_name, token_telegram=token_telegram
+                    )
+
                 logger.info("Registrado inquilino perfectamente")
                 return {
                     "mensaje": "Ejecutado correctamente",
                     "tenant_id": f"{id_tenant}",
+                    "tenant_db": new_name,
                 }
 
     except Exception as e:
