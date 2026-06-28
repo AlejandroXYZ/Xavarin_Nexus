@@ -43,13 +43,14 @@ async def procesar_factura(
         mensajes = [dict(fila) for fila in mensajes]
         logger.info("Inyectando System Prompt")
 
-        # AQUÍ ESTÁ LA CORRECCIÓN: Tu prompt original de extracción
+        # 1. CORRECCIÓN DEL PROMPT: Forzamos nombres cortos para que haga match con la BD
         prompt_extractor = (
-            "Analiza la siguiente conversación entre un cliente y un vendedor. El vendedor acaba de ordenar facturar. "
-            "Tu tarea es extraer EXCLUSIVAMENTE los productos que el cliente acordó comprar con su nombre exacto y su cantidad. "
-            "Devuelve únicamente un JSON con esta estructura:\n"
-            '{"items": [{"nombre_producto": "...", "cantidad": X},{"nombre_producto":"...", "cantidad": X}]}. '
-            "Si no hay acuerdo claro, devuelve la lista vacía, cantidad es un numero entero."
+            "Analiza la conversación. El vendedor acaba de ordenar facturar. "
+            "Extrae los productos a comprar. "
+            "REGLA CRÍTICA: En 'nombre_producto' extrae SOLO el nombre corto y principal del producto (ej. 'Figura Naruto', 'Franela Argentina'), "
+            "IGNORA descripciones largas, materiales, tamaños o precios. "
+            "Devuelve un JSON con esta estructura: {'items': [{'nombre_producto': '...', 'cantidad': X}]}."
+            "Si no hay acuerdo claro, devuelve la lista vacía."
         )
         mensajes.insert(0, {"role": "system", "content": prompt_extractor})
 
@@ -64,6 +65,52 @@ async def procesar_factura(
             db=db, tenant_db=tenant_db, productos=productos
         )
 
+        # 2. EL ESCUDO: Si no hay match en la BD, abortamos ANTES de ir a Odoo
+        if not productos_encontrados:
+            logger.warning(
+                f"Los productos {productos} no coinciden con nada en el catálogo local."
+            )
+
+            # Buscamos el canal para avisarle al dueño del error de catálogo
+            channel_id = await db.fetchval(
+                f"""
+                SELECT channel_id 
+                FROM "{tenant_db}".clients
+                WHERE platform_user_id = $1 AND platform = $2 AND channel_id IS NOT NULL 
+                ORDER BY created_at DESC LIMIT 1;
+                """,
+                platform_user_id,
+                platform,
+            )
+
+            if channel_id:
+                alerta_html = (
+                    "<b>ALERTA DE VENTA FALLIDA:</b><br/>"
+                    "El bot intentó facturar, pero el producto que el cliente quiere no coincide con el catálogo.<br/>"
+                    f"<b>Producto detectado por IA:</b> {productos}"
+                )
+                await ejecutar_odoo(
+                    http_client=http_client,
+                    odoo_url=tenant_cache_data["odoo_url"],
+                    db=tenant_db,
+                    uid=tenant_cache_data["odoo_bot_user"],
+                    api_key=tenant_cache_data["odoo_bot_api_key"],
+                    modelo="discuss.channel",
+                    metodo="message_post",
+                    args=[channel_id],
+                    kwargs={
+                        "body": alerta_html,
+                        "message_type": "comment",
+                        "subtype_xmlid": "mail.mt_comment",
+                        "body_is_html": True,
+                    },
+                )
+            return {
+                "status": "error",
+                "info": "Productos no coinciden en el inventario",
+            }
+
+        # Si pasamos el escudo, facturamos en Odoo tranquilamente
         facturacion = await procesar_venta_completa(
             tenant_data=tenant_cache_data,
             productos_a_comprar=productos_encontrados,
@@ -72,7 +119,7 @@ async def procesar_factura(
             partner_id=partner_id,
         )
 
-        # LÓGICA RECUPERADA: Alerta al dueño si Odoo bloquea por falta de stock
+        # Alerta al dueño si Odoo bloquea por falta de stock
         if (
             isinstance(facturacion, dict)
             and facturacion.get("status") == "out_of_stock"
