@@ -18,8 +18,7 @@ async def set_webhook_telegram_bot(tenant_db: str, token_telegram: str):
 
     async with AsyncClient() as client:
         try:
-            response = await client.get(url=telegram_url, params=params)
-            response.raise_for_status()
+            response = await client.post(url=telegram_url, params=params)
 
             data = response.json()
             if not data.get("ok"):
